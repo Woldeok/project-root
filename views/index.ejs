@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f0f0;
+      color: #333;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+
+    header {
+      background-color: #4CAF50;
+      width: 100%;
+      padding: 10px 0;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    header img {
+      width: 150px;
+      display: block;
+      margin: 0 auto;
+    }
+
+    main {
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      max-width: 600px;
+      width: 100%;
+    }
+
+    h1 {
+      color: #333;
+    }
+
+    p {
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="/img/Logo.png" alt="로고">
+  </header>
+  <main>
+    <h1>환영합니다!</h1>
+    <p>접속한 IP: <%= ip %></p>
+    <p>국가: <%= country %></p>
+    <p>지역: <%= region %></p>
+  </main>
+</body>
+</html>
