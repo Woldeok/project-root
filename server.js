@@ -1,4 +1,4 @@
-// Backend implementation using Node.js and Express with enhanced logging management
+// Backend implementation using Node.js and Express with centralized logging management
 
 require('dotenv').config();
 const express = require('express');
@@ -10,6 +10,7 @@ const db = require('./src/controllers/db');
 const authRouter = require('./src/controllers/auth');
 const fs = require('fs');
 const winston = require('winston');
+const session = require('express-session');
 
 // 로그 파일 경로 정의
 const logFilePath = path.join(__dirname, 'src/logs/app.log');
@@ -53,11 +54,20 @@ logger.stream = {
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Session configuration
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'default_secret',
+  resave: false,
+  saveUninitialized: true,
+  cookie: { secure: false } // In production, set secure: true
+}));
+
 // Middleware
 app.use(bodyParser.json());
 app.use(morgan('combined', { stream: { write: (message) => logger.info(message.trim()) } })); // Save logs to file
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
 // EJS configuration
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
@@ -66,9 +76,21 @@ app.set('views', path.join(__dirname, 'views'));
 app.use('/', express.static(path.join(__dirname, 'ioc')));
 app.use('/img', express.static(path.join(__dirname, 'img')));
 
+// Middleware to log all requests centrally
+app.use((req, res, next) => {
+  const ip = req.ip === '::1' ? '127.0.0.1' : req.ip; // Handle local IP
+  const geo = geoip.lookup(ip) || {}; // Look up location info based on IP
+  const user = req.session.user ? req.session.user.user_id : 'Guest';
+  const role = req.session.user && req.session.user.isAdmin ? 'Admin' : 'User';
+
+  logger.info(`Accessed route: ${req.originalUrl}, Method: ${req.method}, IP: ${ip}, Country: ${geo.country || 'Unknown'}, Region: ${geo.region || 'Unknown'}, User: ${user}, Role: ${role}`);
+
+  next();
+});
+
 // Middleware to check admin authentication
 function isAdmin(req, res, next) {
-  const user = req.user; // Assuming `req.user` has user info after authentication middleware
+  const user = req.session.user; // Assuming `req.session.user` has user info after authentication
   if (user && user.isAdmin) {
     next();
   } else {
@@ -78,19 +100,12 @@ function isAdmin(req, res, next) {
 
 // Home route
 app.get('/', (req, res) => {
-  const ip = req.ip === '::1' ? '127.0.0.1' : req.ip; // Handle local IP
-  const geo = geoip.lookup(ip) || {}; // Look up location info based on IP
-
-  logger.info(
-    `Accessed route: /, IP: ${ip}, Country: ${geo.country || 'Unknown'}, Region: ${geo.region || 'Unknown'}`
-  );
-
   // Render the home page using EJS
   res.render('index', {
     title: 'Home Page',
-    ip: ip,
-    country: geo.country || 'Unknown',
-    region: geo.region || 'Unknown'
+    ip: req.ip,
+    country: 'Unknown',
+    region: 'Unknown'
   });
 });
 
