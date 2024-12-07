@@ -31,6 +31,8 @@ const logFormat = winston.format.printf(({ timestamp, level, message }) => {
   return `${timestamp} [${level.toUpperCase()}]: ${message}`;
 });
 
+
+
 // winston 설정
 const logger = winston.createLogger({
   format: winston.format.combine(
@@ -89,16 +91,32 @@ app.use((req, res, next) => {
   next();
 });
 
-// Middleware to check admin authentication
 function isAdmin(req, res, next) {
-  const user = req.session.user; // Assuming `req.session.user` has user info after authentication
-  if (user && user.isAdmin) {
-    next();
-  } else {
-    res.status(403).render('accessDenied', { title: 'Access Denied', message: 'Access denied. Admins only.' });
+  try {
+    // 세션에서 사용자 정보를 확인
+    const user = req.session.user;
+
+    // 사용자 정보와 관리자 권한 확인
+    if (user && user.role === 'admin') {
+      logger.info(`관리자 인증 성공. 사용자 ID: ${user.user_id}`);
+      return next(); // 다음 미들웨어 또는 라우터로 진행
+    }
+
+    // 인증 실패 시 처리
+    logger.warn('관리자 인증 실패: 권한 없음');
+    res.status(403).render('accessDenied', {
+      title: 'Access Denied',
+      message: '관리자만 접근할 수 있습니다.',
+    });
+  } catch (error) {
+    // 세션이 없거나 기타 오류 발생 시 처리
+    logger.error('관리자 인증 중 오류 발생:', error.message);
+    res.status(403).render('accessDenied', {
+      title: 'Access Denied',
+      message: '관리자만 접근할 수 있습니다.',
+    });
   }
 }
-
 // Home route
 app.get('/', (req, res) => {
   // Render the home page using EJS

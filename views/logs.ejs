@@ -1,14 +1,61 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= title %></title>
-    <link rel="stylesheet" href="/styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f4f4f9; color: #333; padding: 20px; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    table, th, td { border: 1px solid #ddd; }
+    th, td { padding: 10px; text-align: left; }
+    th { background-color: #007bff; color: #fff; }
+  </style>
 </head>
 <body>
-    <h1><%= title %></h1>
-    <pre><%= logs %></pre>
-    <a href="/">Go bac!k to Home</a>
+  <h1>Log Viewer</h1>
+
+  <form method="POST" action="/logs/view">
+    <label for="startTime">Start Time:</label>
+    <input type="datetime-local" id="startTime" name="startTime" required>
+    
+    <label for="endTime">End Time:</label>
+    <input type="datetime-local" id="endTime" name="endTime" required>
+    
+    <label for="keyword">Keyword:</label>
+    <input type="text" id="keyword" name="keyword">
+    
+    <label for="level">Level:</label>
+    <select id="level" name="level">
+      <option value="">All</option>
+      <option value="INFO">INFO</option>
+      <option value="ERROR">ERROR</option>
+    </select>
+    
+    <button type="submit">Search Logs</button>
+  </form>
+
+  <% if (logs.length > 0) { %>
+    <table>
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Level</th>
+          <th>Message</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% logs.forEach(log => { %>
+          <tr>
+            <td><%= log.timestamp %></td>
+            <td><%= log.level %></td>
+            <td><%= log.message %></td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  <% } else { %>
+    <p>No logs found for the given criteria.</p>
+  <% } %>
 </body>
 </html>
