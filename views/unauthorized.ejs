@@ -1,0 +1,42 @@
+<!-- unauthorized.ejs - Unauthorized access page -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8d7da;
+            color: #721c24;
+            text-align: center;
+            padding: 50px;
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #721c24;
+        }
+        a {
+            text-decoration: none;
+            color: #155724;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1><%= title %></h1>
+        <p><%= message %></p>
+        <a href="/login">Login to continue</a>
+    </div>
+</body>
+</html>

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title><%= title %></title>
+  <style>
+    /* 기본 스타일 */
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f9;
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* 헤더 스타일 */
+    .header {
+      background-color: #007bff;
+      color: #fff;
+      padding: 15px 0;
+      text-align: center;
+      font-size: 1.2em;
+      font-weight: bold;
+    }
+
+    .header a {
+      color: #fff;
+      text-decoration: none;
+      margin: 0 15px;
+      font-weight: bold;
+    }
+
+    .header a:hover {
+      text-decoration: underline;
+    }
+
+    /* 컨테이너 스타일 */
+    .container {
+      width: 90%;
+      max-width: 600px;
+      background: #fff;
+      padding: 20px;
+      margin: 20px auto;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    h1 {
+      color: #333;
+      text-align: center;
+      font-size: 2em;
+      margin-bottom: 20px;
+    }
+
+    label {
+      font-weight: bold;
+      display: block;
+      margin-top: 10px;
+    }
+
+    input[type="text"], textarea {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 1em;
+      resize: vertical;
+    }
+
+    button {
+      display: block;
+      width: 100%;
+      padding: 10px;
+      margin-top: 20px;
+      font-size: 1.1em;
+      font-weight: bold;
+      color: #fff;
+      background-color: #28a745;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #218838;
+    }
+  </style>
+</head>
+<body>
+  <!-- 헤더 -->
+  <div class="header">
+    <a href="/">홈</a>
+    <a href="/board">게시판</a>
+    <% if (currentUser) { %>
+      <a href="/logout">로그아웃</a>
+    <% } else { %>
+      <a href="/login">로그인</a>
+      <a href="/signup">회원가입</a>
+    <% } %>
+  </div>
+
+  <!-- 컨테이너 -->
+  <div class="container">
+    <h1>게시물 수정</h1>
+    <form action="/board/<%= post.post_id %>" method="POST">
+      <label for="title">제목:</label>
+      <input type="text" id="title" name="title" value="<%= post.title %>" required><br>
+
+      <label for="content">내용:</label>
+      <textarea id="content" name="content" required><%= post.content %></textarea><br>
+
+      <button type="submit">수정하기</button>
+    </form>
+  </div>
+</body>
+</html>

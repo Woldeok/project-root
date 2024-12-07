@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title><%= title %></title>
+</head>
+<body>
+  <h1>Edit Comment</h1>
+  <form action="/board/<%= post_id %>/comments/<%= comment.comment_id %>" method="POST">
+    <label for="content">Comment:</label>
+    <textarea id="content" name="content" required><%= comment.content %></textarea><br>
+    <button type="submit">Update Comment</button>
+  </form>
+</body>
+</html>

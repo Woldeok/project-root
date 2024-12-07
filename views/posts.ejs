@@ -1,0 +1,73 @@
+<!-- posts.ejs - Page for displaying the list of posts -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .post-container {
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .post {
+            padding: 15px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .post-title {
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        .post-content {
+            margin-top: 10px;
+        }
+        .new-post {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .new-post a {
+            text-decoration: none;
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1><%= title %></h1>
+    <div class="new-post">
+        <a href="/posts/new">Create New Post</a>
+    </div>
+    <% if (posts.length > 0) { %>
+        <% posts.forEach(post => { %>
+            <div class="post-container">
+                <div class="post">
+                    <div class="post-title">Post by User ID: <%= post.user_id %></div>
+                    <div class="post-content"><%= post.content %></div>
+                    <div class="post-meta">Posted on: <%= post.created_at %></div>
+                    <a href="/posts/<%= post.post_id %>">View Details</a>
+                </div>
+            </div>
+        <% }) %>
+    <% } else { %>
+        <p>No posts available. Be the first to create one!</p>
+    <% } %>
+</body>
+</html>

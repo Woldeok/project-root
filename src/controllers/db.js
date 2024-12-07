@@ -24,6 +24,44 @@ const getConnection = (callback) => {
   });
 };
 
+// Function to query the posts table
+const queryPosts = (callback) => {
+  getConnection((err, connection) => {
+    if (err) {
+      callback(err, null);
+    } else {
+      connection.query('SELECT * FROM posts', (err, results) => {
+        connection.release();
+        if (err) {
+          console.error('Error fetching posts:', err);
+          callback(err, null);
+        } else {
+          callback(null, results);
+        }
+      });
+    }
+  });
+};
+
+// General function to execute any query
+const query = (sql, params, callback) => {
+  getConnection((err, connection) => {
+    if (err) {
+      callback(err, null);
+    } else {
+      connection.query(sql, params, (err, results) => {
+        connection.release();
+        if (err) {
+          console.error('Database query error:', err);
+          callback(err, null);
+        } else {
+          callback(null, results);
+        }
+      });
+    }
+  });
+};
+
 // Attempt to connect to the database when the server starts
 pool.getConnection((err, connection) => {
   if (err) {
@@ -34,4 +72,4 @@ pool.getConnection((err, connection) => {
   }
 });
 
-module.exports = { getConnection };
+module.exports = { getConnection, queryPosts, query };

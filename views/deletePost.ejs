@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title><%= title %></title>
+</head>
+<body>
+  <h1>Delete Post</h1>
+  <p>Are you sure you want to delete "<%= post.title %>"?</p>
+  <form action="/board/<%= post.post_id %>/delete" method="POST">
+    <button type="submit">Yes, Delete</button>
+  </form>
+  <a href="/board/<%= post.post_id %>">Cancel</a>
+</body>
+</html>

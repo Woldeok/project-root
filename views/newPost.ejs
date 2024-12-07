@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title><%= title %></title>
+  <style>
+    /* 전체 스타일 */
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f9;
+      color: #333;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    /* 헤더 스타일 */
+    .header {
+      width: 100%;
+      background-color: #007bff;
+      color: #fff;
+      padding: 15px 0;
+      text-align: center;
+      font-size: 1.2em;
+      font-weight: bold;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    .header a {
+      color: #fff;
+      text-decoration: none;
+      margin: 0 15px;
+      font-weight: bold;
+    }
+
+    .header a:hover {
+      text-decoration: underline;
+    }
+
+    /* 컨테이너 스타일 */
+    .container {
+      width: 90%;
+      max-width: 600px;
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    /* 제목 스타일 */
+    h1 {
+      color: #333;
+      margin-bottom: 20px;
+      font-size: 2em;
+    }
+
+    /* 레이블 스타일 */
+    label {
+      display: block;
+      text-align: left;
+      margin-top: 15px;
+      font-weight: bold;
+      font-size: 1.1em;
+      color: #555;
+    }
+
+    /* 입력 필드 스타일 */
+    input[type="text"],
+    textarea {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      resize: vertical;
+      font-size: 1em;
+    }
+
+    /* 버튼 스타일 */
+    button[type="submit"] {
+      margin-top: 20px;
+      padding: 10px 20px;
+      color: #fff;
+      background-color: #007bff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1em;
+      font-weight: bold;
+    }
+
+    button[type="submit"]:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <!-- 헤더 -->
+  <div class="header">
+    <a href="/">홈</a>
+    <a href="/board">게시판</a>
+    <% if (currentUser) { %>
+      <a href="/logout">로그아웃</a>
+    <% } else { %>
+      <a href="/login">로그인</a>
+      <a href="/signup">회원가입</a>
+    <% } %>
+  </div>
+
+  <!-- 게시물 작성 폼 -->
+  <div class="container">
+    <h1>새 게시물 작성</h1>
+    <form action="/board" method="POST">
+      <label for="title">제목:</label>
+      <input type="text" id="title" name="title" required><br>
+      
+      <label for="content">내용:</label>
+      <textarea id="content" name="content" required></textarea><br>
+      
+      <button type="submit">작성하기</button>
+    </form>
+  </div>
+</body>
+</html>

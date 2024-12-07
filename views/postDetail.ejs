@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title><%= title %></title>
+  <style>
+    /* 기본 스타일 */
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f9;
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* 헤더 스타일 */
+    .header {
+      background-color: #007bff;
+      color: #fff;
+      padding: 15px 0;
+      text-align: center;
+      font-size: 1.2em;
+      font-weight: bold;
+    }
+
+    .header a {
+      color: #fff;
+      text-decoration: none;
+      margin: 0 15px;
+      font-weight: bold;
+    }
+
+    .header a:hover {
+      text-decoration: underline;
+    }
+
+    /* 컨테이너 스타일 */
+    .container {
+      width: 90%;
+      max-width: 800px;
+      background: #fff;
+      padding: 20px;
+      margin: 20px auto;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    /* 게시물 제목 스타일 */
+    h1 {
+      color: #333;
+      text-align: center;
+      font-size: 2em;
+      margin-bottom: 10px;
+    }
+
+    /* 댓글 스타일 */
+    .comments {
+      list-style: none;
+      padding: 0;
+    }
+
+    .comments li {
+      padding: 10px;
+      border-bottom: 1px solid #ddd;
+      margin-bottom: 10px;
+    }
+
+    /* 버튼 스타일 */
+    .btn-edit, .btn-delete, .btn-submit-comment {
+      padding: 10px 15px;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1em;
+    }
+
+    .btn-edit {
+      background-color: #007bff;
+    }
+
+    .btn-delete {
+      background-color: #dc3545;
+    }
+
+    .btn-submit-comment {
+      background-color: #28a745;
+      width: 100%;
+    }
+
+    .btn-edit:hover {
+      background-color: #0056b3;
+    }
+
+    .btn-delete:hover {
+      background-color: #c82333;
+    }
+
+    .btn-submit-comment:hover {
+      background-color: #218838;
+    }
+
+    /* 댓글 작성 폼 스타일 */
+    .comment-form {
+      margin-top: 20px;
+    }
+
+    .comment-form textarea {
+      width: 100%;
+      height: 80px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      resize: vertical;
+      font-size: 1em;
+    }
+
+    .comment-form button {
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <!-- 헤더 -->
+  <div class="header">
+    <a href="/">홈</a>
+    <a href="/board">게시판</a>
+    <% if (currentUser) { %>
+      <a href="/logout">로그아웃</a>
+    <% } else { %>
+      <a href="/login">로그인</a>
+      <a href="/signup">회원가입</a>
+    <% } %>
+  </div>
+
+  <div class="container">
+    <h1><%= post.title %></h1>
+    <p>작성자: <%= post.user_id %></p>
+    <p>작성 시간: <%= new Date(post.created_at).toLocaleString('ko-KR') %></p>
+    <p><%= post.content %></p>
+
+    <!-- 작성자이거나 관리자일 때만 수정 및 삭제 버튼 표시 -->
+    <% if (isAuthorOrAdmin) { %>
+      <div class="post-actions">
+        <a href="/board/<%= post.post_id %>/edit" class="btn-edit">수정</a>
+        <form action="/board/<%= post.post_id %>/delete" method="POST" style="display:inline;">
+          <button type="submit" class="btn-delete">삭제</button>
+        </form>
+      </div>
+    <% } %>
+
+    <hr>
+    <h2>댓글</h2>
+    <ul class="comments">
+      <% comments.forEach(comment => { %>
+        <li>
+          <strong><%= comment.user_id %></strong> (<%= new Date(comment.created_at).toLocaleString('ko-KR') %>)<br>
+          <%= comment.content %>
+        </li>
+      <% }) %>
+    </ul>
+
+    <!-- 댓글 작성 폼 -->
+    <form action="/board/<%= post.post_id %>/comments" method="POST" class="comment-form">
+      <textarea name="content" placeholder="댓글을 입력하세요..." required></textarea>
+      <button type="submit" class="btn-submit-comment">댓글 작성</button>
+    </form>
+  </div>
+</body>
+</html>
+  

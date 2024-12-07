@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title><%= title %></title>
+  <style>
+    /* CSS 스타일 */
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f9;
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* 헤더 스타일 */
+    .header {
+      background-color: #007bff;
+      color: #fff;
+      padding: 15px 0;
+      text-align: center;
+      font-size: 1.2em;
+      font-weight: bold;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    .header a {
+      color: #fff;
+      text-decoration: none;
+      margin: 0 15px;
+      font-weight: bold;
+    }
+
+    .header a:hover {
+      text-decoration: underline;
+    }
+
+    .container {
+      width: 90%;
+      max-width: 800px;
+      background: #fff;
+      padding: 20px;
+      margin: 20px auto;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    h1 {
+      color: #333;
+      text-align: center;
+      font-size: 2em;
+      margin-bottom: 20px;
+    }
+
+    .search-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .search-input {
+      width: 100%;
+      max-width: 400px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px 0 0 5px;
+      outline: none;
+      font-size: 1em;
+    }
+
+    .search-button {
+      padding: 10px 15px;
+      background-color: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 0 5px 5px 0;
+      cursor: pointer;
+      font-size: 1em;
+    }
+
+    .search-button:hover {
+      background-color: #0056b3;
+    }
+
+    .post-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    .post-table th, .post-table td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .post-table th {
+      background-color: #f4f4f9;
+      color: #333;
+      font-weight: bold;
+    }
+
+    .post-title {
+      color: #007bff;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    .post-title:hover {
+      color: #0056b3;
+      text-decoration: underline;
+    }
+
+    .no-posts {
+      text-align: center;
+      font-size: 1.1em;
+      color: #666;
+      margin-top: 20px;
+    }
+
+    .create-post-btn {
+      display: block;
+      text-align: center;
+      margin: 30px auto 0;
+      padding: 12px 25px;
+      color: #fff;
+      background-color: #28a745;
+      border: none;
+      border-radius: 5px;
+      font-size: 1.1em;
+      font-weight: bold;
+      text-decoration: none;
+    }
+
+    .create-post-btn:hover {
+      background-color: #218838;
+    }
+  </style>
+</head>
+<body>
+  <!-- 헤더 -->
+  <div class="header">
+    <a href="/">홈</a>
+    <a href="/login">로그인</a>
+    <a href="/signup">회원가입</a>
+  </div>
+
+  <div class="container">
+    <h1>게시판</h1>
+
+    <!-- 검색 창 -->
+    <div class="search-container">
+      <input type="text" class="search-input" placeholder="게시물 검색...">
+      <button class="search-button">검색</button>
+    </div>
+
+    <% if (posts.length > 0) { %>
+      <table class="post-table">
+        <thead>
+          <tr>
+            <th>제목</th>
+            <th>작성자</th>
+            <th>작성 시간</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% posts.forEach(post => { %>
+            <tr>
+              <td><a href="/board/<%= post.post_id %>" class="post-title"><%= post.title %></a></td>
+              <td><%= post.user_id %></td>
+              <td><%= new Date(post.created_at).toLocaleString('ko-KR') %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } else { %>
+      <p class="no-posts">게시물이 없습니다.</p>
+    <% } %>
+
+    <!-- '새 게시물 작성' 버튼 -->
+    <a href="/board/new" class="create-post-btn">새 게시물 작성</a>
+  </div>
+</body>
+</html>

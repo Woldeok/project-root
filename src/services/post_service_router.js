@@ -1,103 +1,158 @@
-// Post and comment router implementation for Node.js and Express with real functionality
-
 const express = require('express');
-const winston = require('winston');
-const geoip = require('geoip-lite');
 const router = express.Router();
-const db = require('../controllers/db'); // Assuming db is a module that handles database interactions
+const postsDb = require('../controllers/postsDb'); // 게시물 DB 모듈
+const jwt = require('jsonwebtoken');
+const winston = require('winston');
+const SECRET_KEY = 'your_secret_key'; // 실제 비밀키로 교체하세요
 
-// Logger configuration
-const logFormat = winston.format.printf(({ timestamp, level, message }) => {
-  return `${timestamp} [${level.toUpperCase()}]: ${message}`;
-});
-
+// Logger 설정
 const logger = winston.createLogger({
   format: winston.format.combine(
     winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-    logFormat
+    winston.format.printf(({ timestamp, level, message }) => `${timestamp} [${level.toUpperCase()}]: ${message}`)
   ),
-  transports: [
-    new winston.transports.Console({ format: winston.format.combine(winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }), logFormat) })
-  ],
+  transports: [new winston.transports.Console()]
 });
 
-// Centralized request logging middleware
-router.use((req, res, next) => {
-  const ip = req.ip === '::1' ? '127.0.0.1' : req.ip;
-  const geo = geoip.lookup(ip) || {};
-  const user = req.session && req.session.user ? req.session.user.user_id : 'Guest';
-  const role = req.session && req.session.user && req.session.user.isAdmin ? 'Admin' : 'User';
-
-  logger.info(`Accessed route: ${req.originalUrl}, Method: ${req.method}, IP: ${ip}, Country: ${geo.country || 'Unknown'}, Region: ${geo.region || 'Unknown'}, User: ${user}, Role: ${role}`);
-
-  next();
-});
-
-// Middleware to check if the user is logged in
-function isLoggedIn(req, res, next) {
-  if (req.session && req.session.user) {
+// Middleware to verify session token
+function verifyToken(req, res, next) {
+  const token = req.cookies.auth_token;
+  if (!token) {
+    logger.warn('No token found, redirecting to login');
+    return res.redirect('/login');
+  }
+  try {
+    const decoded = jwt.verify(token, SECRET_KEY);
+    req.user_id = decoded.user_id;
+    req.session.user = { user_id: decoded.user_id }; // 세션 사용자 설정
     next();
-  } else {
-    res.status(401).render('unauthorized', { title: 'Unauthorized', message: 'You need to be logged in to perform this action.' });
+  } catch (error) {
+    logger.error('Invalid token, redirecting to login');
+    res.clearCookie('auth_token'); // 토큰 무효화
+    return res.redirect('/login');
   }
 }
 
-// Post list route
-router.get('/posts', async (req, res) => {
+// 게시물 목록 조회 - GET /board
+router.get('/board', async (req, res) => {
   try {
-    const posts = await db.query('SELECT * FROM posts');
-    res.render('posts', { title: 'Posts List', posts });
+    const posts = await postsDb.getPosts();
+    logger.info(`Fetched ${posts.length} posts`);
+    res.render('board', { title: '게시판', posts, currentUser: req.session.user });
   } catch (error) {
-    logger.error('Error fetching posts:', error);
-    res.status(500).render('error', { title: 'Error', message: 'Error fetching posts' });
+    logger.error('게시물 불러오기 실패', error);
+    res.status(500).render('error', { title: 'Error', message: '게시물 불러오기 실패. 다시 시도해 주세요.' });
   }
 });
 
-// Post creation form route (only for logged-in users)
-router.get('/posts/new', isLoggedIn, (req, res) => {
-  res.render('newPost', { title: 'Create New Post' });
+// 게시물 작성 폼 - GET /board/new
+router.get('/board/new', verifyToken, (req, res) => {
+  res.render('newPost', { title: '새 게시물 작성', currentUser: req.session.user });
 });
 
-// Post creation submission route (only for logged-in users)
-router.post('/posts', isLoggedIn, async (req, res) => {
+
+// 게시물 생성 - POST /board
+router.post('/board', verifyToken, async (req, res) => {
+  const { title, content } = req.body;
+  const user_id = req.user_id;
+
   try {
-    const { user_id, content, media_path } = req.body;
-    const result = await db.query('INSERT INTO posts (user_id, content, media_path) VALUES (?, ?, ?)', [user_id, content, media_path]);
-    logger.info(`New post created by user ${user_id}`);
-    res.redirect(`/posts/${result.insertId}`);
+    const result = await postsDb.executeQuery('INSERT INTO posts (user_id, title, content) VALUES (?, ?, ?)', [user_id, title, content]);
+    logger.info(`Created post with ID ${result.insertId} by user ${user_id}`);
+    res.redirect(`/board/${result.insertId}`);
   } catch (error) {
-    logger.error('Error creating post:', error);
-    res.status(500).render('error', { title: 'Error', message: 'Error creating post' });
+    logger.error('게시물 생성 실패', error);
+    res.status(500).render('error', { title: 'Error', message: '게시물 생성 중 오류가 발생했습니다.' });
   }
 });
 
-// Post detail route
-router.get('/posts/:post_id', async (req, res) => {
+// 게시물 상세 조회 - GET /board/:post_id
+router.get('/board/:post_id', async (req, res) => {
   const { post_id } = req.params;
   try {
-    const post = await db.query('SELECT * FROM posts WHERE post_id = ?', [post_id]);
+    const post = await postsDb.executeQuery('SELECT * FROM posts WHERE post_id = ?', [post_id]);
+    const comments = await postsDb.executeQuery('SELECT * FROM comments WHERE post_id = ?', [post_id]);
     if (post.length === 0) {
-      return res.status(404).render('notFound', { title: 'Not Found', message: 'Post not found' });
+      logger.warn(`Post ID ${post_id} not found`);
+      return res.status(404).render('notFound', { title: 'Not Found', message: '게시물을 찾을 수 없습니다.' });
     }
-    const comments = await db.query('SELECT * FROM comments WHERE post_id = ?', [post_id]);
-    res.render('postDetail', { title: 'Post Detail', post: post[0], comments });
+
+    const isAuthorOrAdmin = req.session.user &&
+      (req.session.user.user_id === post[0].user_id || req.session.user.isAdmin);
+
+    res.render('postDetail', {
+      title: '게시물 상세보기',
+      post: post[0],
+      comments,
+      currentUser: req.session.user,
+      isAuthorOrAdmin
+    });
   } catch (error) {
-    logger.error('Error fetching post details:', error);
-    res.status(500).render('error', { title: 'Error', message: 'Error fetching post details' });
+    logger.error('게시물 상세 조회 실패', error);
+    res.status(500).render('error', { title: 'Error', message: '게시물 조회 중 오류가 발생했습니다.' });
   }
 });
 
-// Comment submission route (only for logged-in users)
-router.post('/posts/:post_id/comments', isLoggedIn, async (req, res) => {
+// 게시물 수정 폼 - GET /board/:post_id/edit
+router.get('/board/:post_id/edit', verifyToken, async (req, res) => {
   const { post_id } = req.params;
-  const { user_id, content } = req.body;
   try {
-    const result = await db.query('INSERT INTO comments (post_id, user_id, content) VALUES (?, ?, ?)', [post_id, user_id, content]);
-    logger.info(`New comment created on post ${post_id} by user ${user_id}`);
-    res.redirect(`/posts/${post_id}`);
+    const post = await postsDb.executeQuery('SELECT * FROM posts WHERE post_id = ?', [post_id]);
+    if (post.length === 0) {
+      logger.warn(`Post ID ${post_id} not found`);
+      return res.status(404).render('notFound', { title: 'Not Found', message: '게시물을 찾을 수 없습니다.' });
+    }
+    res.render('editPost', { title: 'Edit Post', post: post[0], currentUser: req.session.user });
   } catch (error) {
-    logger.error('Error adding comment:', error);
-    res.status(500).render('error', { title: 'Error', message: 'Error adding comment' });
+    logger.error('게시물 수정 폼 조회 실패', error);
+    res.status(500).render('error', { title: 'Error', message: '게시물 수정 폼 불러오기 실패.' });
+  }
+});
+
+
+// 게시물 수정 - POST /board/:post_id
+router.post('/board/:post_id', verifyToken, async (req, res) => {
+  const { post_id } = req.params;
+  const { title, content } = req.body;
+  try {
+    await postsDb.executeQuery('UPDATE posts SET title = ?, content = ? WHERE post_id = ?', [title, content, post_id]);
+    logger.info(`Updated post with ID ${post_id}`);
+    res.redirect(`/board/${post_id}`);
+  } catch (error) {
+    logger.error('게시물 수정 실패', error);
+    res.status(500).render('error', { title: 'Error', message: '게시물 수정 중 오류가 발생했습니다.' });
+  }
+});
+
+// 게시물 삭제 - POST /board/:post_id/delete
+router.post('/board/:post_id/delete', verifyToken, async (req, res) => {
+  const { post_id } = req.params;
+  try {
+    await postsDb.executeQuery('DELETE FROM posts WHERE post_id = ?', [post_id]);
+    logger.info(`Deleted post with ID ${post_id}`);
+    res.redirect('/board');
+  } catch (error) {
+    logger.error('게시물 삭제 실패', error);
+    res.status(500).render('error', { title: 'Error', message: '게시물 삭제 중 오류가 발생했습니다.' });
+  }
+});
+
+// 댓글 작성 라우트 - POST /board/:post_id/comments
+router.post('/board/:post_id/comments', verifyToken, async (req, res) => {
+  const { post_id } = req.params;
+  const { content } = req.body;
+  const user_id = req.user_id;
+
+  try {
+    await postsDb.executeQuery(
+      'INSERT INTO comments (post_id, user_id, content) VALUES (?, ?, ?)',
+      [post_id, user_id, content]
+    );
+    logger.info(`Comment added to post ${post_id} by user ${user_id}`);
+    res.redirect(`/board/${post_id}`);
+  } catch (error) {
+    logger.error('댓글 작성 실패', error);
+    res.status(500).render('error', { title: 'Error', message: '댓글 작성 중 오류가 발생했습니다.' });
   }
 });
 

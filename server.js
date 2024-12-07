@@ -8,6 +8,7 @@ const path = require('path');
 const bodyParser = require('body-parser');
 const db = require('./src/controllers/db');
 const authRouter = require('./src/controllers/auth');
+const postRouter = require('./src/services/post_service_router');
 const fs = require('fs');
 const winston = require('winston');
 const session = require('express-session');
@@ -111,6 +112,9 @@ app.get('/', (req, res) => {
 
 // Connect authentication router
 app.use('/', authRouter);
+
+// Connect post and comment router
+app.use('/', postRouter);
 
 // Logs page route (admin only)
 app.get('/logs', isAdmin, (req, res) => {
