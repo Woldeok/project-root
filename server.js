@@ -103,20 +103,23 @@ function isAdmin(req, res, next) {
     }
 
     // 인증 실패 시 처리
-    logger.warn('관리자 인증 실패: 권한 없음');
+    const userId = user?.user_id || 'Unknown'; // 사용자 ID가 없을 경우 대비
+    logger.warn(`관리자 인증 실패: 권한 없음. 사용자 ID: ${userId}`);
     res.status(403).render('accessDenied', {
       title: 'Access Denied',
       message: '관리자만 접근할 수 있습니다.',
     });
   } catch (error) {
     // 세션이 없거나 기타 오류 발생 시 처리
-    logger.error('관리자 인증 중 오류 발생:', error.message);
+    const userId = req.session?.user?.user_id || 'Unknown'; // 에러 상황에서도 사용자 ID 확인
+    logger.error(`관리자 인증 중 오류 발생. 사용자 ID: ${userId}, 오류 메시지: ${error.message}`);
     res.status(403).render('accessDenied', {
       title: 'Access Denied',
       message: '관리자만 접근할 수 있습니다.',
     });
   }
 }
+
 // Home route
 app.get('/', (req, res) => {
   // Render the home page using EJS
@@ -138,13 +141,53 @@ app.use('/', postRouter);
 app.get('/logs', isAdmin, (req, res) => {
   fs.readFile(logFilePath, 'utf8', (err, data) => {
     if (err) {
-      return res.status(500).send('Unable to read log file.');
+      console.error(`Failed to read log file: ${err.message}`);
+      return res.status(500).send('로그 파일을 읽는 중 오류가 발생했습니다.');
     }
+
+    // 로그 데이터를 JSON 배열로 처리
+    const logs = data
+      .split('\n') // 줄바꿈 기준으로 나누기
+      .filter(Boolean) // 빈 줄 제거
+      .map(line => {
+        try {
+          return JSON.parse(line); // JSON 포맷으로 변환
+        } catch (error) {
+          return { message: line }; // JSON 변환 실패 시 원본 줄 반환
+        }
+      });
+
     res.render('logs', {
-      title: 'Server Logs',
-      logs: data
+      title: '서버 로그',
+      logs: logs, // 로그 배열 전달
+      error: null, // 에러 메시지 없음
     });
   });
+});
+
+
+app.post('/logs/view', isAdmin, async (req, res) => {
+  const { startTime, endTime, keyword, level } = req.body;
+
+  try {
+    const userId = req.user?.user_id || 'Unknown'; // req.user가 없을 경우 대비
+    console.log(`Log search requested by user ID: ${userId}, Filters: ${JSON.stringify(req.body)}`);
+
+    const logs = await searchLogs({ startTime, endTime, keyword, level });
+    res.render('logs', { 
+      title: 'Log Viewer', 
+      logs, 
+      error: null 
+    });
+  } catch (error) {
+    const userId = req.user?.user_id || 'Unknown'; // 에러 발생 시에도 안전하게 user_id를 확인
+    console.error(`Error fetching logs for user ID: ${userId}`, error.message);
+    res.status(500).render('logs', { 
+      title: 'Log Viewer', 
+      logs: [], 
+      error: '로그 검색 중 오류가 발생했습니다.' 
+    });
+  }
 });
 
 // Start server

@@ -1,61 +1,159 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><%= title %></title>
+  <link rel="stylesheet" href="/css/styles.css">
   <style>
-    body { font-family: Arial, sans-serif; background-color: #f4f4f9; color: #333; padding: 20px; }
-    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-    table, th, td { border: 1px solid #ddd; }
-    th, td { padding: 10px; text-align: left; }
-    th { background-color: #007bff; color: #fff; }
+    body {
+      font-family: 'Arial', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f9f9f9;
+    }
+    header {
+      background-color: #007BFF;
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+    nav a {
+      color: white;
+      margin: 0 10px;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    nav a:hover {
+      text-decoration: underline;
+    }
+    main {
+      padding: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    section {
+      margin-bottom: 20px;
+    }
+    h2 {
+      border-bottom: 2px solid #007BFF;
+      padding-bottom: 5px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    table th, table td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: center;
+    }
+    table th {
+      background-color: #007BFF;
+      color: white;
+    }
+    .error {
+      color: red;
+      font-weight: bold;
+    }
+    button {
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
   </style>
+  <script>
+    function validateForm() {
+      const startTime = document.getElementById('startTime').value;
+      const endTime = document.getElementById('endTime').value;
+
+      if (new Date(startTime) > new Date(endTime)) {
+        alert('시작 시간이 종료 시간보다 클 수 없습니다.');
+        return false;
+      }
+      return true;
+    }
+  </script>
 </head>
 <body>
-  <h1>Log Viewer</h1>
+  <header>
+    <h1><%= title %></h1>
+    <nav>
+      <a href="/">홈</a>
+      <a href="/logout">로그아웃</a>
+    </nav>
+  </header>
 
-  <form method="POST" action="/logs/view">
-    <label for="startTime">Start Time:</label>
-    <input type="datetime-local" id="startTime" name="startTime" required>
-    
-    <label for="endTime">End Time:</label>
-    <input type="datetime-local" id="endTime" name="endTime" required>
-    
-    <label for="keyword">Keyword:</label>
-    <input type="text" id="keyword" name="keyword">
-    
-    <label for="level">Level:</label>
-    <select id="level" name="level">
-      <option value="">All</option>
-      <option value="INFO">INFO</option>
-      <option value="ERROR">ERROR</option>
-    </select>
-    
-    <button type="submit">Search Logs</button>
-  </form>
+  <main>
+    <section>
+      <h2>로그 검색</h2>
+      <form action="/logs/view" method="POST" onsubmit="return validateForm()">
+        <label for="startTime">시작 시간:</label>
+        <input type="datetime-local" id="startTime" name="startTime" required>
 
-  <% if (logs.length > 0) { %>
-    <table>
-      <thead>
-        <tr>
-          <th>Timestamp</th>
-          <th>Level</th>
-          <th>Message</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% logs.forEach(log => { %>
+        <label for="endTime">종료 시간:</label>
+        <input type="datetime-local" id="endTime" name="endTime" required>
+
+        <label for="keyword">키워드:</label>
+        <input type="text" id="keyword" name="keyword">
+
+        <label for="level">레벨:</label>
+        <select id="level" name="level">
+          <option value="">전체</option>
+          <option value="info">정보</option>
+          <option value="warn">경고</option>
+          <option value="error">오류</option>
+        </select>
+
+        <button type="submit">검색</button>
+      </form>
+    </section>
+
+    <section>
+      <h2>로그 결과</h2>
+      <table>
+        <thead>
           <tr>
-            <td><%= log.timestamp %></td>
-            <td><%= log.level %></td>
-            <td><%= log.message %></td>
+            <th>시간</th>
+            <th>레벨</th>
+            <th>메시지</th>
           </tr>
-        <% }); %>
-      </tbody>
-    </table>
-  <% } else { %>
-    <p>No logs found for the given criteria.</p>
-  <% } %>
+        </thead>
+        <tbody>
+          <% if (Array.isArray(logs) && logs.length > 0) { %>
+            <% logs.forEach(log => { %>
+              <tr>
+                <td><%= log.timestamp %></td>
+                <td><%= log.level %></td>
+                <td><%= log.message %></td>
+              </tr>
+            <% }); %>
+          <% } else { %>
+            <tr>
+              <td colspan="3">검색된 로그가 없습니다.</td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </section>
+
+    <% if (typeof error !== 'undefined' && error) { %>
+      <p class="error"><%= error %></p>
+    <% } %>
+  </main>
+
+  <footer>
+    <p>&copy; 2024 로그 뷰어. 모든 권리 보유.</p>
+  </footer>
 </body>
 </html>

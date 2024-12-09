@@ -58,36 +58,33 @@ async function verifyAdmin(req, res, next) {
     });
   }
 }
+router.get('/logs', isAdmin, (req, res) => {
+  fs.readFile(logFilePath, 'utf8', (err, data) => {
+    if (err) {
+      console.error(`Failed to read log file: ${err.message}`);
+      return res.status(500).send('로그 파일을 읽는 중 오류가 발생했습니다.');
+    }
 
-router.get('/view', verifyAdmin, (req, res) => {
-  try {
-    console.log(`Log Viewer page accessed by user ID: ${req.user.user_id}`);
-    res.render('logs', { title: 'Log Viewer', logs: [] }); // 기본적으로 빈 배열 전달
-  } catch (error) {
-    console.error('Error loading log viewer:', error.message);
-    res.status(500).send('로그 뷰어 로드 중 오류가 발생했습니다.');
-  }
-});
+    // 로그 데이터를 JSON 배열로 처리
+    const logs = data
+      .split('\n') // 줄바꿈 기준으로 나누기
+      .filter(Boolean) // 빈 줄 제거
+      .map(line => {
+        try {
+          return JSON.parse(line); // JSON 포맷으로 변환
+        } catch (error) {
+          return { message: line }; // JSON 변환 실패 시 원본 줄 반환
+        }
+      });
 
-router.post('/view', verifyAdmin, async (req, res) => {
-  const { startTime, endTime, keyword, level } = req.body; // 검색 조건
-
-  try {
-    console.log(`Log search requested by user ID: ${req.user.user_id}, Filters: ${JSON.stringify(req.body)}`);
-    const logs = await searchLogs({ startTime, endTime, keyword, level }) || []; // 항상 배열 반환
     res.render('logs', {
-      title: 'Log Viewer',
-      logs,
-      filters: { startTime, endTime, keyword, level }, // 검색 조건 표시
+      title: '서버 로그',
+      logs: logs, // 로그 배열 전달
+      error: null, // 에러 메시지 없음
     });
-  } catch (error) {
-    console.error(`Error fetching logs for user ID: ${req.user.user_id}`, error.message);
-    res.status(500).render('logs', {
-      title: 'Log Viewer',
-      logs: [], // 에러 발생 시 빈 배열 전달
-      error: '로그 검색 중 오류가 발생했습니다.',
-    });
-  }
+  });
 });
+
+
 
 module.exports = router;
