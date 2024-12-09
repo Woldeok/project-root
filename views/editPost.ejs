@@ -13,27 +13,6 @@
       padding: 0;
     }
 
-    /* 헤더 스타일 */
-    .header {
-      background-color: #007bff;
-      color: #fff;
-      padding: 15px 0;
-      text-align: center;
-      font-size: 1.2em;
-      font-weight: bold;
-    }
-
-    .header a {
-      color: #fff;
-      text-decoration: none;
-      margin: 0 15px;
-      font-weight: bold;
-    }
-
-    .header a:hover {
-      text-decoration: underline;
-    }
-
     /* 컨테이너 스타일 */
     .container {
       width: 90%;
@@ -88,17 +67,8 @@
   </style>
 </head>
 <body>
-  <!-- 헤더 -->
-  <div class="header">
-    <a href="/">홈</a>
-    <a href="/board">게시판</a>
-    <% if (currentUser) { %>
-      <a href="/logout">로그아웃</a>
-    <% } else { %>
-      <a href="/login">로그인</a>
-      <a href="/signup">회원가입</a>
-    <% } %>
-  </div>
+  <!-- 공통 헤더 포함 -->
+  <%- include('partials/header') %>
 
   <!-- 컨테이너 -->
   <div class="container">

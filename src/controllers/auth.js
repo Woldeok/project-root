@@ -9,7 +9,21 @@ const logger = console;
 
 // 쿠키 파서 미들웨어
 router.use(cookieParser());
-
+router.get('/logout', (req, res) => {
+  if (req.session) {
+      // 세션 삭제
+      req.session.destroy((err) => {
+          if (err) {
+              console.error('세션 삭제 중 오류:', err);
+              return res.status(500).send('로그아웃 실패');
+          }
+          // 로그아웃 후 메인 페이지로 리다이렉트
+          res.redirect('/');
+      });
+  } else {
+      res.redirect('/');
+  }
+});
 // 회원가입 라우트
 router.post('/signup', async (req, res) => {
   console.time('회원가입 처리');

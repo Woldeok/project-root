@@ -33,17 +33,69 @@ function verifyToken(req, res, next) {
   }
 }
 
-// 게시물 목록 조회 - GET /board
-router.get('/board', async (req, res) => {
+router.get('/', async (req, res) => {
+  const search = req.query.search || ''; // 검색어 가져오기 (없으면 빈 문자열)
   try {
-    const posts = await postsDb.getPosts();
-    logger.info(`Fetched ${posts.length} posts`);
-    res.render('board', { title: '게시판', posts, currentUser: req.session.user });
+      const posts = await postsDb.getPosts(search); // 검색어를 통해 게시물 가져오기
+      res.render('board', { title: '게시판', posts, search }); // 검색어 포함 전달
   } catch (error) {
-    logger.error('게시물 불러오기 실패', error);
-    res.status(500).render('error', { title: 'Error', message: '게시물 불러오기 실패. 다시 시도해 주세요.' });
+      console.error('Error fetching posts:', error);
+      res.status(500).send('게시판 데이터를 불러오는 중 오류가 발생했습니다.');
   }
 });
+// 검색 라우트
+router.get('/board/search', async (req, res) => {
+  const { keyword } = req.query;
+  const searchCondition = {
+    $or: [
+      { title: { $regex: keyword, $options: 'i' } },
+      { content: { $regex: keyword, $options: 'i' } },
+      { author: { $regex: keyword, $options: 'i' } },
+    ],
+  };
+  const posts = await Post.find(searchCondition).sort({ createdAt: -1 });
+  res.render('board', { posts });
+});
+
+
+router.get('/board', async (req, res) => {
+  const search = req.query.search || ''; // 검색어 처리
+  try {
+    const posts = await postsDb.getPosts(search); // 게시물 목록 가져오기
+    res.render('board', { 
+      title: '게시판', 
+      posts, 
+      search, 
+      currentUser: req.session.user || null 
+    });
+  } catch (error) {
+    logger.error('게시물 불러오기 실패', error);
+    res.status(500).render('error', { 
+      title: 'Error', 
+      message: '게시물 불러오기 실패. 다시 시도해 주세요.' 
+    });
+  }
+});
+
+router.post('/board/:postId/delete', async (req, res) => {
+  const postId = req.params.postId;
+
+  try {
+    // 게시물 삭제 함수 호출
+    const deletedRows = await postsDb.deletePost(postId);
+
+    if (deletedRows > 0) {
+      res.status(200).json({ message: '게시물이 성공적으로 삭제되었습니다.' });
+    } else {
+      res.status(404).json({ message: '게시물을 찾을 수 없습니다.' });
+    }
+  } catch (error) {
+    logger.error('게시물 삭제 실패', error);
+    res.status(500).json({ message: '게시물 삭제에 실패했습니다. 다시 시도해 주세요.' });
+  }
+});
+
+
 
 // 게시물 작성 폼 - GET /board/new
 router.get('/board/new', verifyToken, (req, res) => {

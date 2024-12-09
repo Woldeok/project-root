@@ -119,23 +119,37 @@ function isAdmin(req, res, next) {
     });
   }
 }
-
+app.use((req, res, next) => {
+  res.locals.isLoggedIn = req.session && req.session.user ? true : false;
+  res.locals.isAdmin = req.session && req.session.user && req.session.user.role === 'admin';
+  next();
+});
 // Home route
 app.get('/', (req, res) => {
+  const isLoggedIn = req.session && req.session.user ? true : false;
+  const isAdmin = req.session && req.session.user && req.session.user.role === 'admin';
+
   // Render the home page using EJS
   res.render('index', {
     title: 'Home Page',
     ip: req.ip,
     country: 'Unknown',
-    region: 'Unknown'
+    region: 'Unknown',
+    isLoggedIn,
+     isAdmin
   });
 });
+
 
 // Connect authentication router
 app.use('/', authRouter);
 
 // Connect post and comment router
 app.use('/', postRouter);
+
+
+
+
 
 // Logs page route (admin only)
 app.get('/logs', isAdmin, (req, res) => {

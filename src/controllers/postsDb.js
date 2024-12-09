@@ -13,10 +13,24 @@ const pool = mysql.createPool({
   charset: 'utf8mb4',
 });
 
-// 게시물 목록 가져오는 함수
-async function getPosts() {
+// 게시물 목록 가져오기
+async function getPosts(search = '') {
   try {
-    const [rows] = await pool.query('SELECT * FROM posts');
+    let query = `
+      SELECT posts.*, user.nickname AS user_name, user.role AS user_role
+      FROM posts
+      LEFT JOIN user ON posts.user_id = user.user_id
+    `;
+    let params = [];
+
+    if (search) {
+      query += ` WHERE posts.title LIKE ? OR posts.content LIKE ?`;
+      params.push(`%${search}%`, `%${search}%`);
+    }
+
+    query += ` ORDER BY posts.created_at DESC`;
+
+    const [rows] = await pool.query(query, params);
     return rows;
   } catch (err) {
     console.error('Error fetching posts:', err);
@@ -24,14 +38,70 @@ async function getPosts() {
   }
 }
 
-// 특정 쿼리를 실행하는 일반 함수
-async function executeQuery(sql, params) {
+// 특정 게시물 가져오기
+async function getPostById(postId) {
   try {
-    const [results] = await pool.execute(sql, params);
-    return results;
+    const query = `
+      SELECT posts.*, user.nickname AS user_name, user.role AS user_role
+      FROM posts
+      LEFT JOIN user ON posts.user_id = user.user_id
+      WHERE posts.post_id = ?
+    `;
+    const [rows] = await pool.query(query, [postId]);
+    return rows[0]; // 단일 게시물 반환
   } catch (err) {
-    console.error('Database query error:', err);
+    console.error('Error fetching post by ID:', err);
     throw err;
+  }
+}
+
+// 게시물 생성
+async function createPost(userId, title, content) {
+  try {
+    const query = `
+      INSERT INTO posts (user_id, title, content, created_at)
+      VALUES (?, ?, ?, NOW())
+    `;
+    const [result] = await pool.execute(query, [userId, title, content]);
+    return result.insertId; // 생성된 게시물 ID 반환
+  } catch (err) {
+    console.error('Error creating post:', err);
+    throw err;
+  }
+}
+
+// 댓글 삭제 함수 (게시물 삭제 시 호출)
+async function deleteCommentsByPostId(postId) {
+  try {
+    const query = `DELETE FROM comments WHERE post_id = ?`;
+    const [result] = await pool.execute(query, [postId]);
+    return result.affectedRows; // 삭제된 행 수 반환
+  } catch (err) {
+    console.error('Error deleting comments:', err);
+    throw err;
+  }
+}
+
+// 게시물 삭제
+async function deletePost(postId) {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // 댓글 삭제
+    await connection.query('DELETE FROM comments WHERE post_id = ?', [postId]);
+
+    // 게시물 삭제
+    await connection.query('DELETE FROM posts WHERE post_id = ?', [postId]);
+
+    await connection.commit();
+    console.log('게시물과 관련된 댓글이 성공적으로 삭제되었습니다.');
+  } catch (err) {
+    await connection.rollback();
+    console.error('Error deleting post:', err);
+    throw err;
+  } finally {
+    connection.release();
   }
 }
 
@@ -39,11 +109,17 @@ async function executeQuery(sql, params) {
 (async () => {
   try {
     const connection = await pool.getConnection();
-    console.log('Successfully connected to the new database');
+    console.log('Successfully connected to the database');
     connection.release();
   } catch (err) {
     console.error('Initial database connection error:', err);
   }
 })();
 
-module.exports = { getPosts, executeQuery };
+module.exports = {
+  getPosts,
+  getPostById,
+  createPost,
+  deleteCommentsByPostId,
+  deletePost,
+};

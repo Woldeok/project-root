@@ -11,34 +11,34 @@
       color: #333;
       margin: 0;
       padding: 0;
+      min-height: 100vh;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      min-height: 100vh;
     }
 
     /* 헤더 스타일 */
-    .header {
+    header {
       width: 100%;
       background-color: #007bff;
       color: #fff;
       padding: 15px 0;
       text-align: center;
-      font-size: 1.2em;
+      font-size: 1.2rem;
       font-weight: bold;
       position: sticky;
       top: 0;
       z-index: 1000;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
 
-    .header a {
+    header a {
       color: #fff;
       text-decoration: none;
       margin: 0 15px;
       font-weight: bold;
     }
 
-    .header a:hover {
+    header a:hover {
       text-decoration: underline;
     }
 
@@ -51,14 +51,14 @@
       border-radius: 8px;
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
       text-align: center;
-      margin-top: 20px;
+      margin: 20px auto;
     }
 
     /* 제목 스타일 */
     h1 {
       color: #333;
       margin-bottom: 20px;
-      font-size: 2em;
+      font-size: 2rem;
     }
 
     /* 레이블 스타일 */
@@ -67,7 +67,7 @@
       text-align: left;
       margin-top: 15px;
       font-weight: bold;
-      font-size: 1.1em;
+      font-size: 1.1rem;
       color: #555;
     }
 
@@ -80,7 +80,7 @@
       border: 1px solid #ddd;
       border-radius: 5px;
       resize: vertical;
-      font-size: 1em;
+      font-size: 1rem;
     }
 
     /* 버튼 스타일 */
@@ -92,27 +92,59 @@
       border: none;
       border-radius: 5px;
       cursor: pointer;
-      font-size: 1em;
+      font-size: 1rem;
       font-weight: bold;
     }
 
     button[type="submit"]:hover {
       background-color: #0056b3;
     }
+
+    /* 반응형 스타일 */
+    @media (max-width: 768px) {
+      h1 {
+        font-size: 1.8rem;
+      }
+
+      label {
+        font-size: 1rem;
+      }
+
+      input[type="text"],
+      textarea {
+        font-size: 0.9rem;
+      }
+
+      button[type="submit"] {
+        font-size: 0.9rem;
+        padding: 8px 16px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      h1 {
+        font-size: 1.5rem;
+      }
+
+      label {
+        font-size: 0.9rem;
+      }
+
+      input[type="text"],
+      textarea {
+        font-size: 0.8rem;
+      }
+
+      button[type="submit"] {
+        font-size: 0.8rem;
+        padding: 6px 12px;
+      }
+    }
   </style>
 </head>
 <body>
-  <!-- 헤더 -->
-  <div class="header">
-    <a href="/">홈</a>
-    <a href="/board">게시판</a>
-    <% if (currentUser) { %>
-      <a href="/logout">로그아웃</a>
-    <% } else { %>
-      <a href="/login">로그인</a>
-      <a href="/signup">회원가입</a>
-    <% } %>
-  </div>
+  <!-- 공통 헤더 포함 -->
+  <%- include('partials/header') %>
 
   <!-- 게시물 작성 폼 -->
   <div class="container">
