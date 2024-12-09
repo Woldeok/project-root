@@ -139,6 +139,10 @@ app.get('/', (req, res) => {
      isAdmin
   });
 });
+const rssRouter = require('./src/services/rss_router');
+app.use(rssRouter);
+const sitemapRouter = require('./src/services/sitemap_router');
+app.use(sitemapRouter);
 
 
 // Connect authentication router

@@ -105,11 +105,29 @@ async function deletePost(postId) {
   }
 }
 
-// 일반 쿼리 실행 함수
-async function executeQuery(query, params = []) {
+// 최근 게시물 가져오기 (RSS 또는 기타 용도)
+async function getRecentPosts(limit = 10) {
   try {
-    const [rows] = await pool.execute(query, params);
+    const query = `
+      SELECT posts.*, user.nickname AS user_name, user.role AS user_role
+      FROM posts
+      LEFT JOIN user ON posts.user_id = user.user_id
+      ORDER BY posts.created_at DESC
+      LIMIT ?
+    `;
+    const [rows] = await pool.query(query, [limit]);
     return rows;
+  } catch (err) {
+    console.error('Error fetching recent posts:', err);
+    throw err;
+  }
+}
+
+// 특정 쿼리를 실행하는 일반 함수
+async function executeQuery(query, params) {
+  try {
+    const [results] = await pool.execute(query, params);
+    return results;
   } catch (err) {
     console.error('Database query error:', err);
     throw err;
@@ -133,5 +151,6 @@ module.exports = {
   createPost,
   deleteCommentsByPostId,
   deletePost,
+  getRecentPosts,
   executeQuery,
 };

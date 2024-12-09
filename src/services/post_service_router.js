@@ -92,26 +92,40 @@ router.get('/board', async (req, res) => {
 });
 
 // 게시물 삭제 라우트
-router.post('/board/:postId/delete', async (req, res) => {
-  const postId = req.params.postId;
+router.get('/board/:post_id', async (req, res) => {
+  const { post_id } = req.params;
+  const currentUser = req.session.user; // 현재 로그인 사용자 정보
+
+  console.log(`현재 사용자 정보:`, currentUser);
 
   try {
-    // 작성자 또는 관리자 권한 확인
-    const hasPermission = await canDeletePost(req, postId);
-    if (!hasPermission) {
-      return res.status(403).json({ message: '권한이 없습니다.' });
+    const post = await postsDb.getPostById(post_id); // 게시물 데이터 가져오기
+    const comments = await postsDb.getCommentsByPostId(post_id); // 댓글 가져오기
+
+    if (!post) {
+      console.error('게시물을 찾을 수 없습니다.');
+      return res.status(404).send('게시물을 찾을 수 없습니다.');
     }
 
-    // 게시물 삭제
-    await postsDb.deletePost(postId);
+    // 권한 로그 출력
+    if (currentUser) {
+      console.log(`권한 상태: ${currentUser.role === 'admin' ? '관리자' : '일반 사용자'}`);
+    } else {
+      console.log('권한 상태: 비로그인 사용자');
+    }
 
-    // 삭제 후 게시판 목록으로 이동
-    res.redirect('/board');
-  } catch (error) {
-    console.error('게시물 삭제 실패:', error);
-    res.status(500).json({ message: '게시물 삭제에 실패했습니다. 다시 시도해 주세요.' });
+    res.render('post_detail', {
+      title: '게시물 상세 보기',
+      post,
+      comments,
+      currentUser, // 사용자 정보 전달
+    });
+  } catch (err) {
+    console.error('게시물 상세 조회 실패:', err);
+    res.status(500).send('오류가 발생했습니다.');
   }
 });
+
 
 
 
