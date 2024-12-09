@@ -77,6 +77,8 @@ app.set('views', path.join(__dirname, 'views'));
 
 // Static files
 app.use('/', express.static(path.join(__dirname, 'ioc')));
+app.use('/', express.static(path.join(__dirname, 'robots')));
+
 app.use('/img', express.static(path.join(__dirname, 'img')));
 
 // Middleware to log all requests centrally

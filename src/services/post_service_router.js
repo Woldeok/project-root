@@ -135,40 +135,48 @@ router.get('/board/new', verifyToken, (req, res) => {
 });
 
 
-// 게시물 생성 - POST /board
-router.post('/board', verifyToken, async (req, res) => {
+router.post('/board', async (req, res) => {
   const { title, content } = req.body;
-  const user_id = req.user_id;
 
   try {
-    const result = await postsDb.executeQuery('INSERT INTO posts (user_id, title, content) VALUES (?, ?, ?)', [user_id, title, content]);
-    logger.info(`Created post with ID ${result.insertId} by user ${user_id}`);
-    res.redirect(`/board/${result.insertId}`);
+    // 데이터베이스에 저장
+    await postsDb.createPost(req.session.user.user_id, title, content);
+    res.redirect('/board');
   } catch (error) {
-    logger.error('게시물 생성 실패', error);
-    res.status(500).render('error', { title: 'Error', message: '게시물 생성 중 오류가 발생했습니다.' });
+    console.error('게시물 작성 중 오류:', error);
+    res.status(500).send('게시물 작성 중 오류가 발생했습니다.');
   }
 });
 
-// 게시물 상세 조회 - GET /board/:post_id
+
+
 router.get('/board/:post_id', async (req, res) => {
   const { post_id } = req.params;
+  const currentUser = req.session.user || null;
+
   try {
-    const post = await postsDb.executeQuery('SELECT * FROM posts WHERE post_id = ?', [post_id]);
-    const comments = await postsDb.executeQuery('SELECT * FROM comments WHERE post_id = ?', [post_id]);
-    if (post.length === 0) {
+    // 게시물 데이터 가져오기
+    const post = await postsDb.getPostById(post_id);
+    if (!post) {
       logger.warn(`Post ID ${post_id} not found`);
       return res.status(404).render('notFound', { title: 'Not Found', message: '게시물을 찾을 수 없습니다.' });
     }
 
-    const isAuthorOrAdmin = req.session.user &&
-      (req.session.user.user_id === post[0].user_id || req.session.user.isAdmin);
+    // 댓글 데이터 가져오기
+    const comments = await postsDb.getCommentsByPostId(post_id);
+
+    // 작성자 또는 관리자 확인
+    const isAuthorOrAdmin = currentUser &&
+      (currentUser.user_id === post.user_id || currentUser.role === 'admin');
+
+    // 로그
+    logger.info(`게시물 조회 성공 - Post ID: ${post_id}, 사용자: ${currentUser ? currentUser.user_id : '비로그인'}, 권한: ${currentUser ? currentUser.role : '없음'}`);
 
     res.render('postDetail', {
-      title: '게시물 상세보기',
-      post: post[0],
+      title: post.title || '게시물 상세보기',
+      post,
       comments,
-      currentUser: req.session.user,
+      currentUser,
       isAuthorOrAdmin
     });
   } catch (error) {
@@ -176,6 +184,8 @@ router.get('/board/:post_id', async (req, res) => {
     res.status(500).render('error', { title: 'Error', message: '게시물 조회 중 오류가 발생했습니다.' });
   }
 });
+
+
 
 // 게시물 수정 폼 - GET /board/:post_id/edit
 router.get('/board/:post_id/edit', verifyToken, async (req, res) => {

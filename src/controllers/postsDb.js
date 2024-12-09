@@ -123,6 +123,18 @@ async function getRecentPosts(limit = 10) {
   }
 }
 
+// 댓글 가져오기
+async function getCommentsByPostId(postId) {
+  try {
+    const query = 'SELECT * FROM comments WHERE post_id = ? ORDER BY created_at ASC';
+    const [rows] = await pool.query(query, [postId]);
+    return rows;
+  } catch (err) {
+    console.error('Error fetching comments:', err);
+    throw err;
+  }
+}
+
 // 특정 쿼리를 실행하는 일반 함수
 async function executeQuery(query, params) {
   try {
@@ -152,5 +164,6 @@ module.exports = {
   deleteCommentsByPostId,
   deletePost,
   getRecentPosts,
+  getCommentsByPostId, // 댓글 가져오기
   executeQuery,
 };
