@@ -110,6 +110,7 @@
       border-radius: 8px;
       background-color: #f9f9f9;
       margin-bottom: 15px;
+      position: relative;
     }
 
     .comment-meta {
@@ -122,6 +123,16 @@
       font-size: 1rem;
       color: #333;
       line-height: 1.6;
+    }
+
+    .delete-comment-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background-color: transparent;
+      border: none;
+      color: #e74c3c;
+      cursor: pointer;
     }
 
     textarea {
@@ -168,7 +179,7 @@
     <div class="post-meta">
       작성자: <%= post.user_name %> | 작성 시간: <%= new Date(post.created_at).toLocaleString('ko-KR') %>
     </div>
-    <div class="post-content"><%= post.content %></div>
+    <div class="post-content"><%- post.content %></div>
 
     <!-- 버튼 그룹 -->
     <div class="button-group">
@@ -190,6 +201,11 @@
               작성자: <%= comment.user_name %> | 작성 시간: <%= new Date(comment.created_at).toLocaleString('ko-KR') %>
             </div>
             <div class="comment-content"><%= comment.content %></div>
+            <% if (currentUser && (currentUser.role === 'admin' || currentUser.user_id === comment.user_id)) { %>
+              <form action="/board/<%= post.post_id %>/comments/<%= comment.comment_id %>/delete" method="POST">
+                <button type="submit" class="delete-comment-btn">삭제</button>
+              </form>
+            <% } %>
           </div>
         <% }) %>
       <% } else { %>
@@ -201,7 +217,7 @@
         <form action="/board/<%= post.post_id %>/comments" method="POST">
           <textarea name="content" rows="4" placeholder="댓글을 작성하세요..." required></textarea>
           <button type="submit" class="btn btn-primary">댓글 작성</button>
-        </form>
+        </form>     
       <% } else { %>
         <p>댓글을 작성하려면 <a href="/login">로그인</a>하세요.</p>
       <% } %>
