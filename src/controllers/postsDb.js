@@ -105,6 +105,17 @@ async function deletePost(postId) {
   }
 }
 
+// 일반 쿼리 실행 함수
+async function executeQuery(query, params = []) {
+  try {
+    const [rows] = await pool.execute(query, params);
+    return rows;
+  } catch (err) {
+    console.error('Database query error:', err);
+    throw err;
+  }
+}
+
 // 데이터베이스 연결 확인
 (async () => {
   try {
@@ -122,4 +133,5 @@ module.exports = {
   createPost,
   deleteCommentsByPostId,
   deletePost,
+  executeQuery,
 };

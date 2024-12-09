@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title><%= title %></title>
   <style>
-    /* 기본 스타일 */
+    /* 전체 스타일 */
     body {
       font-family: Arial, sans-serif;
       background-color: #f4f4f9;
@@ -13,10 +13,9 @@
       padding: 0;
     }
 
-    /* 컨테이너 스타일 */
     .container {
       width: 90%;
-      max-width: 600px;
+      max-width: 800px;
       background: #fff;
       padding: 20px;
       margin: 20px auto;
@@ -31,38 +30,77 @@
       margin-bottom: 20px;
     }
 
-    label {
+    .post-title {
+      font-size: 1.5em;
       font-weight: bold;
-      display: block;
-      margin-top: 10px;
+      margin-bottom: 10px;
     }
 
-    input[type="text"], textarea {
-      width: 100%;
-      padding: 10px;
-      margin-top: 5px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      font-size: 1em;
-      resize: vertical;
+    .post-meta {
+      font-size: 0.9em;
+      color: #777;
+      margin-bottom: 20px;
     }
 
-    button {
-      display: block;
-      width: 100%;
-      padding: 10px;
+    .post-content {
+      line-height: 1.6;
+      margin-bottom: 30px;
+    }
+
+    .button-group {
+      text-align: center;
       margin-top: 20px;
-      font-size: 1.1em;
-      font-weight: bold;
-      color: #fff;
-      background-color: #28a745;
+    }
+
+    .button-group form {
+      display: inline;
+    }
+
+    .btn {
+      padding: 10px 15px;
+      font-size: 1em;
       border: none;
       border-radius: 5px;
       cursor: pointer;
+      text-decoration: none;
     }
 
-    button:hover {
-      background-color: #218838;
+    .btn-primary {
+      background-color: #007bff;
+      color: white;
+    }
+
+    .btn-danger {
+      background-color: #dc3545;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background-color: #0056b3;
+    }
+
+    .btn-danger:hover {
+      background-color: #c82333;
+    }
+
+    .comments-section {
+      margin-top: 30px;
+    }
+
+    .comment {
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      margin-bottom: 10px;
+    }
+
+    .comment-meta {
+      font-size: 0.85em;
+      color: #777;
+    }
+
+    .comment-content {
+      margin-top: 5px;
     }
   </style>
 </head>
@@ -70,18 +108,51 @@
   <!-- 공통 헤더 포함 -->
   <%- include('partials/header') %>
 
-  <!-- 컨테이너 -->
   <div class="container">
-    <h1>게시물 수정</h1>
-    <form action="/board/<%= post.post_id %>" method="POST">
-      <label for="title">제목:</label>
-      <input type="text" id="title" name="title" value="<%= post.title %>" required><br>
+    <!-- 게시물 상세 정보 -->
+    <h1>게시물 상세 보기</h1>
+    <div class="post-title"><%= post.title %></div>
+    <div class="post-meta">
+      작성자: <%= post.user_name %> | 작성 시간: <%= new Date(post.created_at).toLocaleString('ko-KR') %>
+    </div>
+    <div class="post-content"><%= post.content %></div>
 
-      <label for="content">내용:</label>
-      <textarea id="content" name="content" required><%= post.content %></textarea><br>
+    <!-- 버튼 그룹 -->
+    <div class="button-group">
+      <% if (currentUser && (currentUser.role === 'admin' || currentUser.user_id === post.user_id)) { %>
+        <form action="/board/<%= post.post_id %>/delete" method="POST">
+          <button type="submit" class="btn btn-danger">삭제</button>
+        </form>
+      <% } %>
+      <a href="/board" class="btn btn-primary">목록으로</a>
+    </div>
 
-      <button type="submit">수정하기</button>
-    </form>
+    <!-- 댓글 섹션 -->
+    <div class="comments-section">
+      <h2>댓글</h2>
+      <% if (comments.length > 0) { %>
+        <% comments.forEach(comment => { %>
+          <div class="comment">
+            <div class="comment-meta">
+              작성자: <%= comment.user_name %> | 작성 시간: <%= new Date(comment.created_at).toLocaleString('ko-KR') %>
+            </div>
+            <div class="comment-content"><%= comment.content %></div>
+          </div>
+        <% }) %>
+      <% } else { %>
+        <p>댓글이 없습니다.</p>
+      <% } %>
+
+      <!-- 댓글 작성 -->
+      <% if (currentUser) { %>
+        <form action="/board/<%= post.post_id %>/comments" method="POST">
+          <textarea name="content" rows="3" placeholder="댓글을 작성하세요..." required></textarea><br>
+          <button type="submit" class="btn btn-primary">댓글 작성</button>
+        </form>
+      <% } else { %>
+        <p>댓글을 작성하려면 <a href="/login">로그인</a>하세요.</p>
+      <% } %>
+    </div>
   </div>
 </body>
 </html>

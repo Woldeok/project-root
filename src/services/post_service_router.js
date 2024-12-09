@@ -4,7 +4,21 @@ const postsDb = require('../controllers/postsDb'); // 게시물 DB 모듈
 const jwt = require('jsonwebtoken');
 const winston = require('winston');
 const SECRET_KEY = 'your_secret_key'; // 실제 비밀키로 교체하세요
+// 관리자 또는 작성자 여부 확인 함수
+async function canDeletePost(req, postId) {
+  const currentUser = req.session.user;
 
+  if (!currentUser) {
+    return false; // 로그인하지 않은 사용자는 권한 없음
+  }
+
+  if (currentUser.role === 'admin') {
+    return true; // 관리자는 항상 삭제 가능
+  }
+    // 작성자인지 확인
+    const post = await postsDb.getPostById(postId);
+    return post && post.user_id === currentUser.user_id;
+  }
 // Logger 설정
 const logger = winston.createLogger({
   format: winston.format.combine(
@@ -77,20 +91,24 @@ router.get('/board', async (req, res) => {
   }
 });
 
+// 게시물 삭제 라우트
 router.post('/board/:postId/delete', async (req, res) => {
   const postId = req.params.postId;
 
   try {
-    // 게시물 삭제 함수 호출
-    const deletedRows = await postsDb.deletePost(postId);
-
-    if (deletedRows > 0) {
-      res.status(200).json({ message: '게시물이 성공적으로 삭제되었습니다.' });
-    } else {
-      res.status(404).json({ message: '게시물을 찾을 수 없습니다.' });
+    // 작성자 또는 관리자 권한 확인
+    const hasPermission = await canDeletePost(req, postId);
+    if (!hasPermission) {
+      return res.status(403).json({ message: '권한이 없습니다.' });
     }
+
+    // 게시물 삭제
+    await postsDb.deletePost(postId);
+
+    // 삭제 후 게시판 목록으로 이동
+    res.redirect('/board');
   } catch (error) {
-    logger.error('게시물 삭제 실패', error);
+    console.error('게시물 삭제 실패:', error);
     res.status(500).json({ message: '게시물 삭제에 실패했습니다. 다시 시도해 주세요.' });
   }
 });
