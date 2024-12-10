@@ -130,8 +130,24 @@ router.get('/board/:post_id', async (req, res) => {
 
 
 // 게시물 작성 폼 - GET /board/new
-router.get('/board/new', verifyToken, (req, res) => {
-  res.render('newPost', { title: '새 게시물 작성', currentUser: req.session.user });
+router.get('/board/new/new', (req, res) => {
+  try {
+      // 현재 사용자 확인
+      const currentUser = req.session.user;
+
+      if (!currentUser) {
+          console.log('비로그인 사용자 접근');
+          return res.status(403).redirect('/login'); // 로그인 페이지로 리다이렉트
+      }
+
+      res.render('post_new', { 
+          title: '새 게시물 작성', 
+          currentUser 
+      });
+  } catch (error) {
+      console.error('게시물 작성 페이지 로드 중 오류:', error);
+      res.status(500).send('게시물 작성 페이지를 로드할 수 없습니다.');
+  }
 });
 
 
@@ -148,42 +164,64 @@ router.post('/board', async (req, res) => {
   }
 });
 
-
-
-router.get('/board/:post_id', async (req, res) => {
-  const { post_id } = req.params;
-  const currentUser = req.session.user || null;
-
+router.get('/board/:postId', async (req, res) => {
   try {
-    // 게시물 데이터 가져오기
-    const post = await postsDb.getPostById(post_id);
-    if (!post) {
-      logger.warn(`Post ID ${post_id} not found`);
-      return res.status(404).render('notFound', { title: 'Not Found', message: '게시물을 찾을 수 없습니다.' });
-    }
+    const postId = req.params.postId;
+    const post = await postsDb.getPostById(postId); // 게시물 가져오기
+    const comments = await postsDb.getCommentsByPostId(postId); // 댓글 가져오기
+    const currentUser = req.user; // 현재 접속한 사용자 정보 (로그인된 사용자)
 
-    // 댓글 데이터 가져오기
-    const comments = await postsDb.getCommentsByPostId(post_id);
-
-    // 작성자 또는 관리자 확인
-    const isAuthorOrAdmin = currentUser &&
-      (currentUser.user_id === post.user_id || currentUser.role === 'admin');
-
-    // 로그
-    logger.info(`게시물 조회 성공 - Post ID: ${post_id}, 사용자: ${currentUser ? currentUser.user_id : '비로그인'}, 권한: ${currentUser ? currentUser.role : '없음'}`);
-
-    res.render('postDetail', {
-      title: post.title || '게시물 상세보기',
-      post,
-      comments,
-      currentUser,
-      isAuthorOrAdmin
+    res.render('post_detail', {
+      title: post.title,
+      post: post,
+      comments: comments, // 댓글 정보 전달
+      currentUser: currentUser || null, // 현재 사용자 정보
     });
   } catch (error) {
-    logger.error('게시물 상세 조회 실패', error);
-    res.status(500).render('error', { title: 'Error', message: '게시물 조회 중 오류가 발생했습니다.' });
+    console.error('게시물 상세 조회 중 오류:', error);
+    res.status(500).send('오류가 발생했습니다.');
   }
 });
+
+
+
+router.post('/board/:postId/comments/:commentId/delete', async (req, res) => {
+  const { postId, commentId } = req.params;
+  const currentUser = req.user; // 현재 로그인한 사용자 정보
+
+  try {
+    // 댓글 가져오기
+    const comment = await postsDb.getCommentById(commentId);
+    if (!comment) {
+      return res.status(404).send('댓글을 찾을 수 없습니다.');
+    }
+
+    // 작성자 또는 관리자 여부 확인
+    if (currentUser.role !== 'admin' && currentUser.user_id !== comment.user_id) {
+      return res.status(403).send('삭제 권한이 없습니다.');
+    }
+
+    // 댓글 삭제
+    await postsDb.deleteCommentById(commentId);
+
+    // 로그 기록
+    if (currentUser.role === 'admin') {
+      console.log(`관리자 ${currentUser.user_id}가 댓글 ID ${commentId}를 삭제했습니다.`);
+    } else {
+      console.log(`사용자 ${currentUser.user_id}가 자신의 댓글 ID ${commentId}를 삭제했습니다.`);
+    }
+
+    res.redirect(`/board/${postId}`);
+  } catch (error) {
+    console.error('댓글 삭제 중 오류:', error);
+    res.status(500).send('댓글 삭제 중 오류가 발생했습니다.');
+  }
+});
+
+
+
+
+
 
 
 

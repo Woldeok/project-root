@@ -126,14 +126,41 @@ async function getRecentPosts(limit = 10) {
 // 댓글 가져오기
 async function getCommentsByPostId(postId) {
   try {
-    const query = 'SELECT * FROM comments WHERE post_id = ? ORDER BY created_at ASC';
+    const query = `
+      SELECT c.comment_id, c.content, c.created_at, u.nickname AS user_name
+      FROM comments c
+      JOIN user u ON c.user_id = u.user_id
+      WHERE c.post_id = ?
+      ORDER BY c.created_at ASC
+    `;
     const [rows] = await pool.query(query, [postId]);
     return rows;
   } catch (err) {
-    console.error('Error fetching comments:', err);
+    console.error('댓글 조회 중 오류:', err);
     throw err;
   }
 }
+async function getCommentById(commentId) {
+  try {
+    const query = `SELECT * FROM comments WHERE comment_id = ?`;
+    const [rows] = await pool.query(query, [commentId]);
+    return rows[0] || null; // 단일 댓글 반환
+  } catch (err) {
+    console.error('댓글 조회 중 오류:', err);
+    throw err;
+  }
+}
+async function deleteCommentById(commentId) {
+  try {
+    const query = `DELETE FROM comments WHERE comment_id = ?`;
+    const [result] = await pool.execute(query, [commentId]);
+    return result.affectedRows;
+  } catch (err) {
+    console.error('댓글 삭제 중 오류:', err);
+    throw err;
+  }
+}
+
 
 // 특정 쿼리를 실행하는 일반 함수
 async function executeQuery(query, params) {

@@ -29,7 +29,8 @@ router.post('/signup', async (req, res) => {
   console.time('회원가입 처리');
   logger.info('회원가입 요청 수신:', req.body);
 
-  const { user_id, nickname, password, email, role } = req.body;
+  const { user_id, nickname, password, email } = req.body;
+  const role = 'user'; // 기본 권한을 'user'로 설정
 
   try {
     // 비밀번호 해싱
@@ -68,6 +69,7 @@ router.post('/signup', async (req, res) => {
     console.timeEnd('회원가입 처리');
   }
 });
+
 
 // 로그인 라우트
 router.post('/login', (req, res) => {
