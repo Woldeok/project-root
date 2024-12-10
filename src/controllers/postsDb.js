@@ -28,31 +28,44 @@ async function getPosts(search = '') {
       params.push(`%${search}%`, `%${search}%`);
     }
 
-    query += ` ORDER BY posts.created_at DESC`;
+    // 공지 게시물(is_notice = 1)을 먼저, 그다음 작성 시간순으로 정렬
+    query += `
+      ORDER BY posts.is_notice DESC, posts.created_at DESC
+    `;
 
     const [rows] = await pool.query(query, params);
-    return rows;
+    return rows; // 정렬된 결과 반환
   } catch (err) {
     console.error('Error fetching posts:', err);
     throw err;
   }
 }
 
+
 // 특정 게시물 가져오기
+// postsDb.js
 async function getPostById(postId) {
-  try {
-    const query = `
-      SELECT posts.*, user.nickname AS user_name, user.role AS user_role
-      FROM posts
-      LEFT JOIN user ON posts.user_id = user.user_id
-      WHERE posts.post_id = ?
-    `;
-    const [rows] = await pool.query(query, [postId]);
-    return rows[0]; // 단일 게시물 반환
-  } catch (err) {
-    console.error('Error fetching post by ID:', err);
-    throw err;
+  const query = `
+    SELECT posts.*, user.nickname AS user_name
+    FROM posts
+    LEFT JOIN user ON posts.user_id = user.user_id
+    WHERE posts.post_id = ?
+  `;
+
+  const [rows] = await pool.query(query, [postId]);
+  const post = rows[0];
+
+  // 공지 여부 확인 로깅
+  if (post) {
+    console.log(`게시물 ID ${postId}:`, {
+      title: post.title,
+      isNotice: post.is_notice === 1 ? '공지' : '일반',
+    });
+  } else {
+    console.log(`게시물 ID ${postId}를 찾을 수 없습니다.`);
   }
+
+  return post; // 단일 게시물 반환
 }
 
 // 게시물 생성
@@ -125,42 +138,30 @@ async function getRecentPosts(limit = 10) {
 
 // 댓글 가져오기
 async function getCommentsByPostId(postId) {
-  try {
-    const query = `
-      SELECT c.comment_id, c.content, c.created_at, u.nickname AS user_name
-      FROM comments c
-      JOIN user u ON c.user_id = u.user_id
-      WHERE c.post_id = ?
-      ORDER BY c.created_at ASC
-    `;
-    const [rows] = await pool.query(query, [postId]);
-    return rows;
-  } catch (err) {
-    console.error('댓글 조회 중 오류:', err);
-    throw err;
-  }
+  const query = `
+    SELECT 
+      comments.comment_id, 
+      comments.content, 
+      comments.created_at, 
+      comments.user_id, 
+      user.nickname AS user_name
+    FROM 
+      comments
+    LEFT JOIN 
+      user ON comments.user_id = user.user_id
+    WHERE 
+      comments.post_id = ?
+    ORDER BY 
+      comments.created_at ASC
+  `;
+  const [rows] = await pool.query(query, [postId]);
+  return rows;
 }
 async function getCommentById(commentId) {
-  try {
-    const query = `SELECT * FROM comments WHERE comment_id = ?`;
-    const [rows] = await pool.query(query, [commentId]);
-    return rows[0] || null; // 단일 댓글 반환
-  } catch (err) {
-    console.error('댓글 조회 중 오류:', err);
-    throw err;
-  }
+  const query = `SELECT * FROM comments WHERE comment_id = ?`;
+  const [rows] = await pool.query(query, [commentId]);
+  return rows[0]; // 단일 댓글 반환
 }
-async function deleteCommentById(commentId) {
-  try {
-    const query = `DELETE FROM comments WHERE comment_id = ?`;
-    const [result] = await pool.execute(query, [commentId]);
-    return result.affectedRows;
-  } catch (err) {
-    console.error('댓글 삭제 중 오류:', err);
-    throw err;
-  }
-}
-
 
 // 특정 쿼리를 실행하는 일반 함수
 async function executeQuery(query, params) {
@@ -172,7 +173,30 @@ async function executeQuery(query, params) {
     throw err;
   }
 }
-
+async function deleteCommentById(commentId) {
+  try {
+    const query = `DELETE FROM comments WHERE comment_id = ?`;
+    const [result] = await pool.execute(query, [commentId]);
+    return result.affectedRows; // 삭제된 행 수 반환
+  } catch (err) {
+    console.error('댓글 삭제 중 오류:', err);
+    throw err;
+  }
+}
+async function updateCommentById(commentId, newContent) {
+  try {
+    const query = `
+      UPDATE comments
+      SET content = ?, updated_at = NOW()
+      WHERE comment_id = ?
+    `;
+    const [result] = await pool.execute(query, [newContent, commentId]);
+    return result.affectedRows; // 수정된 행 수 반환
+  } catch (err) {
+    console.error('댓글 수정 중 오류:', err);
+    throw err;
+  }
+}
 // 데이터베이스 연결 확인
 (async () => {
   try {
@@ -193,4 +217,7 @@ module.exports = {
   getRecentPosts,
   getCommentsByPostId, // 댓글 가져오기
   executeQuery,
+  getCommentById ,
+  deleteCommentById,
+  updateCommentById,
 };

@@ -81,6 +81,78 @@ app.use('/', express.static(path.join(__dirname, 'robots')));
 
 app.use('/img', express.static(path.join(__dirname, 'img')));
 
+
+
+
+const blockedIPs = new Map(); // 차단된 IP와 만료 시간 저장
+const failedRequests = {}; // 요청 실패 기록
+
+const BLOCK_TIME = 3600 * 1000; // 1시간 (밀리초)
+const MAX_FAILED_REQUESTS = 50; // 허용 가능한 최대 요청 실패 수
+
+// 파란색 로그 출력 함수
+const logInfo = (message) => {
+  console.log(`\x1b[34m%s\x1b[0m`, message); // 파란색 출력
+};
+
+// IP 차단 미들웨어
+app.use((req, res, next) => {
+  const ip = req.ip;
+  const currentTime = Date.now();
+
+  // 차단된 IP인지 확인
+  if (blockedIPs.has(ip)) {
+    const unblockTime = blockedIPs.get(ip);
+    if (currentTime < unblockTime) {
+      logInfo(`IP ${ip}는 현재 차단된 상태입니다. 차단 해제 시간: ${new Date(unblockTime).toLocaleString('ko-KR')}`);
+      return res.status(403).send('당신의 접근이 일시적으로 차단되었습니다. 나중에 다시 시도하세요.');
+    } else {
+      blockedIPs.delete(ip); // 차단 시간이 지났으면 차단 해제
+      logInfo(`IP ${ip}의 차단이 해제되었습니다.`);
+    }
+  }
+
+  next();
+});
+
+// 요청 감시 및 차단 로직
+app.use((req, res, next) => {
+  const ip = req.ip;
+
+  // 관리자는 차단하지 않음
+  const currentUser = req.session?.user; // 세션에서 사용자 정보 가져오기
+  if (currentUser && currentUser.role === 'admin') {
+    logInfo(`관리자 IP ${ip}는 차단 대상에서 제외됩니다.`);
+    return next();
+  }
+
+  // 실패 요청 기록 증가
+  failedRequests[ip] = (failedRequests[ip] || 0) + 1;
+
+  if (failedRequests[ip] > MAX_FAILED_REQUESTS) {
+    blockedIPs.set(ip, Date.now() + BLOCK_TIME); // 현재 시간 기준 차단 시간 설정
+    logInfo(`IP ${ip}가 너무 많은 실패 요청으로 인해 차단되었습니다. 차단 해제 시간: ${new Date(Date.now() + BLOCK_TIME).toLocaleString('ko-KR')}`);
+    return res.status(403).send('너무 많은 요청으로 인해 접근이 일시적으로 차단되었습니다.');
+  }
+
+  logInfo(`IP ${ip}의 요청 실패 횟수: ${failedRequests[ip]} / ${MAX_FAILED_REQUESTS}`);
+  next();
+});
+
+// 요청 정상 처리 후 실패 기록 초기화
+app.use((req, res, next) => {
+  const ip = req.ip;
+  if (failedRequests[ip]) {
+    delete failedRequests[ip]; // 정상 요청 시 실패 기록 삭제
+    logInfo(`IP ${ip}의 요청 실패 기록이 초기화되었습니다.`);
+  }
+  next();
+});
+
+
+
+
+
 // Middleware to log all requests centrally
 app.use((req, res, next) => {
   const ip = req.ip === '::1' ? '127.0.0.1' : req.ip; // Handle local IP

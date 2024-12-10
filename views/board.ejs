@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <title><%= title %></title>
   <style>
-    /* 전체 스타일 */
     body {
       font-family: Arial, sans-serif;
       background-color: #f4f4f9;
@@ -144,15 +143,27 @@
           </tr>
         </thead>
         <tbody>
-          <% posts.forEach(post => { %>
+          <!-- 공지 게시물 -->
+          <% posts.filter(post => post.is_notice == 1).forEach(post => { %>
             <tr>
               <td>
                 <a href="/board/<%= post.post_id %>" class="post-title">
                   <%= post.title %>
                 </a>
-                <% if (post.user_id === 'wtrdd') { %>
-                  <span class="admin-tag">[공지]</span>
-                <% } %>
+                <span class="admin-tag">[공지]</span>
+              </td>
+              <td><%= post.user_name %></td>
+              <td><%= new Date(post.created_at).toLocaleString('ko-KR') %></td>
+            </tr>
+          <% }) %>
+
+          <!-- 일반 게시물 -->
+          <% posts.filter(post => post.is_notice == 0).forEach(post => { %>
+            <tr>
+              <td>
+                <a href="/board/<%= post.post_id %>" class="post-title">
+                  <%= post.title %>
+                </a>
               </td>
               <td><%= post.user_name %></td>
               <td><%= new Date(post.created_at).toLocaleString('ko-KR') %></td>
@@ -165,7 +176,7 @@
     <% } %>
 
     <!-- '새 게시물 작성' 버튼 -->
-    <a href="/board/new/new" class="create-post-btn">새 게시물 작성</a>
+    <a href="/board/new" class="create-post-btn">새 게시물 작성</a>
   </div>
 </body>
 </html>

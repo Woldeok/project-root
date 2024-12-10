@@ -12,7 +12,9 @@
       padding: 0;
     }
 
-    .container {
+
+
+    <!-- .container {
       width: 90%;
       max-width: 800px;
       background: #ffffff;
@@ -20,7 +22,7 @@
       margin: 30px auto;
       border-radius: 12px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    }
+    } -->
 
     h1 {
       text-align: center;
@@ -49,6 +51,14 @@
       margin-bottom: 30px;
     }
 
+    .notice-badge {
+      font-size: 2rem;
+      font-weight: bold;
+      color: red;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
     .button-group {
       text-align: right;
       margin-top: 20px;
@@ -66,7 +76,7 @@
     }
 
     .btn-primary {
-      background-color: #007bff;
+     
       color: white;
     }
 
@@ -147,13 +157,18 @@
   </style>
 </head>
 <body>
-  <!-- 공통 헤더 포함 -->
-  <%- include('partials/header') %>
+  <!-- 헤더 포함 -->
+  <div class="header">
+    <%- include('partials/header') %>
+  </div>
 
   <div class="container">
-    <!-- 게시물 상세 정보 -->
     <h1>게시물 상세 보기</h1>
+    <% if (post.is_notice === 1) { %>
+      <div class="notice-badge">[공지사항]</div>
+    <% } %>
     <div class="post-title"><%= post.title %></div>
+    
     <div class="post-meta">
       작성자: <%= post.user_name %> | 작성 시간: <%= new Date(post.created_at).toLocaleString('ko-KR') %>
     </div>
@@ -193,7 +208,6 @@
         <p class="no-comments">댓글이 없습니다.</p>
       <% } %>
 
-      <!-- 댓글 작성 -->
       <% if (currentUser) { %>
         <form action="/board/<%= post.post_id %>/comments" method="POST">
           <textarea name="content" rows="4" placeholder="댓글을 작성하세요..." required></textarea>

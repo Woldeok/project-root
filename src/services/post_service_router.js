@@ -75,7 +75,15 @@ router.get('/board/search', async (req, res) => {
 router.get('/board', async (req, res) => {
   const search = req.query.search || ''; // 검색어 처리
   try {
-    const posts = await postsDb.getPosts(search); // 게시물 목록 가져오기
+    // 게시물 목록 가져오기
+    const posts = await postsDb.getPosts(search);
+
+    // 로그에 is_notice 상태 표시
+    posts.forEach(post => {
+      console.log(`게시물 ID: ${post.post_id}, 제목: ${post.title}, 공지 여부: ${post.is_notice}`);
+    });
+
+    // 프론트엔드에 데이터 전달
     res.render('board', { 
       title: '게시판', 
       posts, 
@@ -90,6 +98,7 @@ router.get('/board', async (req, res) => {
     });
   }
 });
+
 
 // 게시물 삭제 라우트
 router.get('/board/:post_id', async (req, res) => {
@@ -164,18 +173,37 @@ router.post('/board', async (req, res) => {
   }
 });
 
+
+
+router.use((req, res, next) => {
+  // JWT 또는 세션에서 사용자 정보 가져오기
+  if (req.cookies.auth_token) {
+    try {
+      req.user = jwt.verify(req.cookies.auth_token, SECRET_KEY);
+    } catch (err) {
+      console.error('JWT 인증 오류:', err);
+    }
+  }
+  next();
+});
+
 router.get('/board/:postId', async (req, res) => {
   try {
     const postId = req.params.postId;
     const post = await postsDb.getPostById(postId); // 게시물 가져오기
     const comments = await postsDb.getCommentsByPostId(postId); // 댓글 가져오기
-    const currentUser = req.user; // 현재 접속한 사용자 정보 (로그인된 사용자)
+    const currentUser = req.user || null; // 현재 사용자 정보
+
+    // 로그 확인
+    console.log('게시물:', post);
+    console.log('댓글 목록:', comments);
+    console.log('현재 사용자:', currentUser);
 
     res.render('post_detail', {
       title: post.title,
-      post: post,
-      comments: comments, // 댓글 정보 전달
-      currentUser: currentUser || null, // 현재 사용자 정보
+      post,
+      comments,
+      currentUser,
     });
   } catch (error) {
     console.error('게시물 상세 조회 중 오류:', error);
@@ -185,38 +213,135 @@ router.get('/board/:postId', async (req, res) => {
 
 
 
+
+
+
+
+
+
+
+
+
+
+const authenticateJWT = (req, res, next) => {
+  const token = req.cookies.auth_token;
+
+  if (!token) {
+    req.user = null; // 비로그인 상태 처리
+    return next();
+  }
+
+  try {
+    const decoded = jwt.verify(token, SECRET_KEY);
+    req.user = decoded; // JWT 디코딩 결과를 req.user에 저장
+    next();
+  } catch (err) {
+    console.error('JWT 인증 오류:', err);
+    res.clearCookie('auth_token'); // 잘못된 토큰 삭제
+    req.user = null;
+    return next();
+  }
+};
+
+// 모든 라우트에 JWT 인증 미들웨어 추가
+router.use(authenticateJWT);
+
+router.get('/board/:postId/comments/:commentId/edit', async (req, res) => {
+  const { postId, commentId } = req.params;
+  const currentUser = req.user || {}; // 기본값 설정
+
+  console.log('현재 사용자 정보:', currentUser);
+
+  try {
+    const comment = await postsDb.getCommentById(commentId);
+
+    if (!comment) {
+      return res.status(404).send('댓글을 찾을 수 없습니다.');
+    }
+
+    console.log('댓글 정보:', comment);
+
+    // 권한 확인
+    if (!(currentUser.role === 'admin' || currentUser.user_id === comment.user_id)) {
+      console.log('권한 없음:', { currentUser, comment });
+      return res.status(403).send('수정 권한이 없습니다.');
+    }
+
+    // 댓글 수정 페이지 렌더링
+    res.render('comment_edit', {
+      title: '댓글 수정',
+      comment: comment,
+      postId: postId,
+    });
+  } catch (error) {
+    console.error('댓글 수정 페이지 렌더링 중 오류:', error);
+    res.status(500).send('댓글 수정 페이지를 로드할 수 없습니다.');
+  }
+});
+
+
+
+// 댓글 수정 요청 처리
+router.post('/board/:postId/comments/:commentId/edit', async (req, res) => {
+  const { postId, commentId } = req.params;
+  const { content } = req.body;
+  const currentUser = req.user;
+
+  try {
+    // 댓글 데이터 가져오기
+    const comment = await postsDb.getCommentById(commentId);
+
+    if (!comment) {
+      return res.status(404).send('댓글을 찾을 수 없습니다.');
+    }
+
+    // 권한 확인: 관리자 또는 댓글 작성자인 경우만 수정 가능
+    if (currentUser.role !== 'admin' && currentUser.user_id !== comment.user_id) {
+      return res.status(403).send('수정 권한이 없습니다.');
+    }
+
+    // 댓글 내용 업데이트
+    await postsDb.updateCommentById(commentId, content);
+    res.redirect(`/board/${postId}`);
+  } catch (error) {
+    console.error('댓글 수정 중 오류:', error);
+    res.status(500).send('댓글 수정에 실패했습니다.');
+  }
+});
+
 router.post('/board/:postId/comments/:commentId/delete', async (req, res) => {
   const { postId, commentId } = req.params;
-  const currentUser = req.user; // 현재 로그인한 사용자 정보
+  const currentUser = req.session.user; // 현재 로그인한 사용자 정보
+
+  if (!currentUser) {
+    console.warn('비로그인 사용자의 댓글 삭제 시도');
+    return res.status(403).send('로그인이 필요합니다.');
+  }
 
   try {
     // 댓글 가져오기
     const comment = await postsDb.getCommentById(commentId);
     if (!comment) {
+      console.warn(`댓글 ID ${commentId}를 찾을 수 없음`);
       return res.status(404).send('댓글을 찾을 수 없습니다.');
     }
 
-    // 작성자 또는 관리자 여부 확인
+    // 권한 검사
     if (currentUser.role !== 'admin' && currentUser.user_id !== comment.user_id) {
-      return res.status(403).send('삭제 권한이 없습니다.');
+      console.warn(`삭제 권한 없음 - 사용자 ID: ${currentUser.user_id}, 댓글 작성자: ${comment.user_id}`);
+      return res.status(403).send('댓글을 삭제할 권한이 없습니다.');
     }
 
     // 댓글 삭제
     await postsDb.deleteCommentById(commentId);
-
-    // 로그 기록
-    if (currentUser.role === 'admin') {
-      console.log(`관리자 ${currentUser.user_id}가 댓글 ID ${commentId}를 삭제했습니다.`);
-    } else {
-      console.log(`사용자 ${currentUser.user_id}가 자신의 댓글 ID ${commentId}를 삭제했습니다.`);
-    }
-
+    console.log(`댓글 ID ${commentId} 삭제 완료`);
     res.redirect(`/board/${postId}`);
   } catch (error) {
     console.error('댓글 삭제 중 오류:', error);
     res.status(500).send('댓글 삭제 중 오류가 발생했습니다.');
   }
 });
+
 
 
 

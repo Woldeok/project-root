@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title><%= title %></title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f9;
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      width: 90%;
+      max-width: 600px;
+      background: #fff;
+      padding: 20px;
+      margin: 30px auto;
+      border-radius: 12px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+      text-align: center;
+      font-size: 1.8rem;
+      margin-bottom: 20px;
+      color: #444;
+    }
+    label {
+      font-weight: bold;
+      display: block;
+      margin: 15px 0 5px;
+    }
+    textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      resize: none;
+      font-size: 1rem;
+    }
+    button {
+      margin-top: 20px;
+      padding: 12px 20px;
+      font-size: 1rem;
+      font-weight: bold;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>댓글 수정</h1>
+    <form action="/board/<%= postId %>/comments/<%= comment.comment_id %>/edit" method="POST">
+      <label for="content">댓글 내용:</label>
+      <textarea id="content" name="content" rows="4" required><%= comment.content %></textarea>
+      <button type="submit">수정하기</button>
+    </form>
+  </div>
+</body>
+</html>
