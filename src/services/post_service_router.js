@@ -159,7 +159,9 @@ router.get('/board/new/new', (req, res) => {
   }
 });
 
-
+router.get('/%EA%B0%9C%EC%9D%B8%EC%A0%95%EB%B3%B4%EC%B2%98%EB%A6%AC%EB%B0%A9%EC%B9%A8', (req, res) => {
+      res.render('%EA%B0%9C%EC%9D%B8%EC%A0%95%EB%B3%B4%EC%B2%98%EB%A6%AC%EB%B0%A9%EC%B9%A8')
+});
 router.post('/board', async (req, res) => {
   const { title, content } = req.body;
 
