@@ -1,0 +1,88 @@
+<header class="d-flex justify-content-between align-items-center">
+    <a href="/">
+      <img src="/img/Logo.png" alt="로고">
+    </a>
+    <nav class="nav-menu d-flex">
+      <a href="/about">사이트 소개</a>
+      <a href="/board">게시판</a>
+      <a href="/#">상품목록</a>
+
+    </nav>
+    <nav class="nav-menu">
+      <% if (!isLoggedIn) { %>
+        <a href="/login" class="btn btn-outline-light btn-sm ml-2">로그인</a>
+        <a href="/signup" class="btn btn-outline-light btn-sm ml-2">회원가입</a>
+      <% } else { %>
+        <a href="/logout" class="btn btn-outline-light btn-sm ml-2">로그아웃</a>
+      <% } %>
+    </nav>
+  </header>
+  
+  <style>
+    /* 공통 스타일 */
+    header {
+      background-color: #343a40;
+      padding: 15px 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      display: flex;
+      flex-wrap: wrap; /* 요소들이 화면에 맞게 줄 바꿈 되도록 설정 */
+      align-items: center;
+      justify-content: space-between;
+    }
+  
+    header a {
+      color: #ffffff;
+      text-decoration: none;
+      font-size: 16px;
+      font-weight: bold;
+    }
+  
+    header a:hover {
+      color: #17a2b8;
+      text-decoration: underline;
+    }
+  
+    .nav-menu {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap; /* 모바일에서 메뉴 아이템들이 줄 바꿈 되도록 설정 */
+    }
+  
+    header img {
+      max-height: 100px;
+    }
+  
+    .btn-outline-light {
+      border: 1px solid #ffffff;
+      color: #ffffff;
+      transition: all 0.3s ease;
+    }
+  
+    .btn-outline-light:hover {
+      background-color: #ffffff;
+      color: #343a40;
+    }
+  
+    /* 반응형 디자인을 위한 미디어 쿼리 */
+    @media (max-width: 768px) {
+      header {
+        flex-direction: column;
+        align-items: center;
+      }
+  
+      .nav-menu {
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        margin-top: 10px;
+      }
+  
+      .nav-menu a {
+        font-size: 18px;
+      }
+    }
+  </style>
+  

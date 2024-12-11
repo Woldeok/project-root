@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IP 차단 해제</title>
+    <link rel="stylesheet" href="/css/styles.css"> <!-- 필요하면 스타일 경로 추가 -->
+</head>
+<body>
+    <h1>IP 차단 관리</h1>
+    <p>현재 차단된 IP 목록입니다. 원하는 IP를 선택하여 차단을 해제하세요.</p>
+
+    <!-- IP 목록 테이블 -->
+    <table border="1">
+        <thead>
+            <tr>
+                <th>IP 주소</th>
+                <th>차단 해제 시간</th>
+                <th>작업</th>
+            </tr>
+        </thead>
+        <tbody>
+            <% if (blockedIPs.length === 0) { %>
+                <tr>
+                    <td colspan="3">현재 차단된 IP가 없습니다.</td>
+                </tr>
+            <% } else { %>
+                <% blockedIPs.forEach(ip => { %>
+                    <tr>
+                        <td><%= ip.ip %></td>
+                        <td><%= ip.unblockTime %></td>
+                        <td>
+                            <form action="/unblock-ip" method="POST" style="display: inline;">
+                                <input type="hidden" name="ip" value="<%= ip.ip %>">
+                                <button type="submit">차단 해제</button>
+                            </form>
+                        </td>
+                    </tr>
+                <% }); %>
+            <% } %>
+        </tbody>
+    </table>
+
+    <script>
+        // 필요 시 JavaScript를 추가할 수 있음
+    </script>
+</body>
+</html>
