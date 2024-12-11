@@ -202,7 +202,36 @@ app.use((req, res, next) => {
   next();
 });
 app.set('trust proxy', true);
+const nodemailer = require('nodemailer');
 
+// 이메일 전송 설정
+const transporter = nodemailer.createTransport({    
+  service: 'Gmail', // Gmail 사용 (다른 서비스도 가능)
+  auth: {
+    user: 'jungchwimisaenghwal63@gmail.com', // 개발자 이메일
+    pass: 'dntt yvws cwls lqrt', // 이메일 비밀번호 또는 앱 비밀번호
+  },
+});
+
+// 이메일 전송 함수
+const sendEmail = async (ip, startTime, unblockTime) => {
+  const mailOptions = {
+    from: 'jungchwimisaenghwal63@gmail.com', // 발신 이메일
+    to: 'jungchwimisaenghwal63@gmail.com', // 수신 이메일
+    subject: `IP 차단 알림: ${ip}`,
+    text: `IP ${ip}가 1분당 요청 제한을 초과하여 차단되었습니다.\n\n
+    - 차단 시작 시간: ${new Date(startTime).toLocaleString('ko-KR')}\n
+    - 차단 해제 예정 시간: ${new Date(unblockTime).toLocaleString('ko-KR')}\n\n
+    디도스 공격 가능성을 확인하세요.`,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`개발자에게 차단 이메일 전송 완료: ${ip}`);
+  } catch (error) {
+    console.error('이메일 전송 중 오류 발생:', error);
+  }
+};
 const unblockIp = (ip) => {
   if (blockedIPs.has(ip)) {
     blockedIPs.delete(ip);
@@ -240,8 +269,9 @@ app.use((req, res, next) => {
   if (ipRequestCounts[ip].length > MAX_REQUESTS_PER_MINUTE) {
     blockedIPs.set(ip, Date.now() + BLOCK_TIME);
     logInfo(`IP ${ip}가 1분당 요청 제한을 초과하여 차단되었습니다. 차단 해제 시간: ${new Date(Date.now() + BLOCK_TIME).toLocaleString('ko-KR')}`);
-    return res.status(403).send('1분 내 과도한 요청으로 인해 접근이 차단되었습니다.');
     sendEmail(ip, startTime, unblockTime);
+    return res.status(403).send('1분 내 과도한 요청으로 인해 접근이 차단되었습니다.');
+   
   }
 
   // 실패 요청 기록 증가
@@ -259,36 +289,11 @@ app.use((req, res, next) => {
 
 
 
-const nodemailer = require('nodemailer');
 
-// 이메일 전송 설정
-const transporter = nodemailer.createTransport({    
-  service: 'Gmail', // Gmail 사용 (다른 서비스도 가능)
-  auth: {
-    user: 'jungchwimisaenghwal63@gmail.com', // 개발자 이메일
-    pass: 'dntt yvws cwls lqrt', // 이메일 비밀번호 또는 앱 비밀번호
-  },
-});
+const shopRouter = require('./src/routes/shop_router');
 
-// 이메일 전송 함수
-const sendEmail = async (ip, startTime, unblockTime) => {
-  const mailOptions = {
-    from: 'jungchwimisaenghwal63@gmail.com', // 발신 이메일
-    to: 'jungchwimisaenghwal63@gmail.com', // 수신 이메일
-    subject: `IP 차단 알림: ${ip}`,
-    text: `IP ${ip}가 1분당 요청 제한을 초과하여 차단되었습니다.\n\n
-    - 차단 시작 시간: ${new Date(startTime).toLocaleString('ko-KR')}\n
-    - 차단 해제 예정 시간: ${new Date(unblockTime).toLocaleString('ko-KR')}\n\n
-    디도스 공격 가능성을 확인하세요.`,
-  };
-
-  try {
-    await transporter.sendMail(mailOptions);
-    console.log(`개발자에게 차단 이메일 전송 완료: ${ip}`);
-  } catch (error) {
-    console.error('이메일 전송 중 오류 발생:', error);
-  }
-};
+// 상점 라우터 등록
+app.use('/shop', shopRouter);
 
 
 // 요청 정상 처리 후 실패 기록 초기화

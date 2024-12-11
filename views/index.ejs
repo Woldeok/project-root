@@ -13,7 +13,9 @@
       font-family: Arial, sans-serif;
       background-color: #f8f9fa;
       color: #333;
-      font-size: 16px; /* 기본 폰트 크기 */
+      font-size: 16px;
+      position: relative;
+      min-height: 100vh; /* 페이지가 전체 화면을 채우도록 설정 */
     }
 
     main {
@@ -75,6 +77,26 @@
         font-size: 0.9rem; /* 더 작은 화면에서 본문 크기 축소 */
       }
     }
+
+    footer {
+      position: fixed; /* 화면 하단에 고정 */
+      bottom: 0;
+      width: 100%;
+      background-color: #343a40; /* 어두운 배경색 */
+      color: #fff; /* 글자 색상 */
+      text-align: center;
+      padding: 10px 0; /* 여백 */
+      font-size: 14px;
+    }
+
+    footer a {
+      color: #17a2b8; /* 링크 색상 */
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline; /* 마우스 오버 시 밑줄 */
+    }
   </style>
 </head>
 <body>
@@ -90,8 +112,13 @@
     <p class="lead">국가: <%= country %></p>
     <p class="lead">지역: <%= region %></p>
   </main>
+
+  <!-- Footer -->
+  <footer>
+    <a href="/개인정보처리방침" target="_blank">개인정보처리방침</a>
+  </footer>
+
   <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
-  <a href="/개인정보처리방침"></a>
 </body>
 </html>
