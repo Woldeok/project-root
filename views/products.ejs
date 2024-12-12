@@ -1,10 +1,10 @@
 <!-- products.ejs -->
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Products</title>
+    <title>상품 목록</title>
     <link rel="stylesheet" href="/styles.css">
     <style>
         body {
@@ -59,30 +59,24 @@
     </style>
 </head>
 <body>
-    <h1>Product List</h1>
+    <h1>상품 목록</h1>
     <table>
         <thead>
             <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Price</th>
-                <th>Stock</th>
-                <th>Actions</th>
+                <th>상품명</th>
+                <th>가격</th>
+                <th>재고</th>
             </tr>
         </thead>
         <tbody>
             <% products.forEach(product => { %>
-            <tr>
-                <td><%= product.id %></td>
+            <tr onclick="location.href='/products/<%= product.id %>'" style="cursor: pointer;">
                 <td><%= product.name %></td>
-                <td>$<%= parseFloat(product.price).toFixed(2) %></td>
+                <td>₩<%= parseFloat(product.price).toFixed(2) %></td>
                 <td><%= product.stock %></td>
-                <td>
-                    <a href="/products/<%= product.id %>">View Details</a>
-                </td>
             </tr>
             <% }) %>
         </tbody>
-    </table>
+    </table>    
 </body>
 </html>

@@ -1,28 +1,65 @@
 <!-- product_detail.ejs -->
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Product Detail</title>
+    <title>상품 상세 정보</title>
     <link rel="stylesheet" href="/styles.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            background-color: #fff;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+        h1 {
+            text-align: center;
+            color: #444;
+        }
+        .product-details {
+            margin: 20px 0;
+        }
+        .product-details p {
+            margin: 10px 0;
+        }
+        .product-details strong {
+            color: #555;
+        }
+        .btn-back {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 15px;
+            color: #fff;
+            background-color: #4CAF50;
+            text-decoration: none;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .btn-back:hover {
+            background-color: #45a049;
+        }
+    </style>
 </head>
 <body>
-    <h1>Product Detail</h1>
-    <div>
-        <h2><%= product.name %></h2>
-        <p><strong>Price:</strong> $<%= product.price.toFixed(2) %></p>
-        <p><strong>Stock:</strong> <%= product.stock %></p>
-        <p><strong>Description:</strong> Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
+    <%- include('partials/header') %> <!-- 헤더 포함 -->
+    <div class="container">
+        <h1>상품 상세 정보</h1>
+        <div class="product-details">
+            <p><strong>상품명:</strong> <%= product.name %></p>
+            <p><strong>가격:</strong> ₩<%= parseFloat(product.price).toFixed(2) %></p>
+            <p><strong>재고:</strong> <%= product.stock %> 개</p>
+        </div>
+        <a href="/products" class="btn-back">목록으로 돌아가기</a>
     </div>
-
-    <form action="/purchase" method="POST">
-        <input type="hidden" name="productId" value="<%= product.id %>">
-        <label for="quantity">Quantity:</label>
-        <input type="number" name="quantity" id="quantity" min="1" max="<%= product.stock %>" required>
-        <button type="submit">Buy Now</button>
-    </form>
-
-    <a href="/products">Back to Products</a>
 </body>
 </html>
