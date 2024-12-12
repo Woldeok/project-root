@@ -291,9 +291,8 @@ app.use((req, res, next) => {
 
 
 const shopRouter = require('./src/routes/shop_router');
+app.use('/', shopRouter);
 
-// 상점 라우터 등록
-app.use('/shop', shopRouter);
 
 
 // 요청 정상 처리 후 실패 기록 초기화

@@ -5,9 +5,30 @@ const Purchase = require('../models/purchase');
 const router = express.Router();
 
 // 상품 목록 조회
+// 상품 목록 조회
+// router.get('/products', async (req, res) => {
+//   try {
+//     const products = await Product.findAll();
+//     res.render('products', { products }); // EJS 파일 렌더링
+//   } catch (error) {
+//     console.error('Error fetching products:', error);
+//     res.status(500).send('Internal Server Error');
+//   }
+// });
+// 상품 목록 조회
 router.get('/products', async (req, res) => {
-  const products = await Product.findAll();
-  res.json(products);
+  try {
+    const products = await Product.findAll();
+    res.render('products', { products }); // EJS 파일 렌더링
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+// 상품 추가 폼
+router.get('/products/new', (req, res) => {
+  res.render('product_new'); // product_new.ejs 렌더링
 });
 
 // 상품 추가
