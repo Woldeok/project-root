@@ -55,25 +55,6 @@ const app = express();
 const http = require('http');
 
 const port = process.env.PORT || 3000;
-// http.createServer((req, res) => {
-//   const options = {
-//     hostname: 'localhost',
-//     port: 3000,
-//     path: req.url,
-//     method: req.method,
-//     headers: req.headers,
-//   };
-
-//   const proxy = http.request(options, (response) => {
-//     res.writeHead(response.statusCode, response.headers);
-//     response.pipe(res, { end: true });
-//   });
-
-//   req.pipe(proxy, { end: true });
-// }).listen(80, () => {
-//   console.log('Proxy running on port 80');
-// });
-// app.set('trust proxy', true);
 
 // Session configuration
 app.use(session({
@@ -96,18 +77,8 @@ app.set('views', path.join(__dirname, 'views'));
 // Static files
 app.use('/', express.static(path.join(__dirname, 'ioc')));
 app.use('/', express.static(path.join(__dirname, 'robots')));
-
 app.use('/img', express.static(path.join(__dirname, 'img')));
 
-const blockedIPs = new Map(); // 차단된 IP와 만료 시간 저장
-const failedRequests = {}; // 요청 실패 기록
-const ipRequestCounts = {}; // IP별 요청 빈도 기록
-const BLOCK_TIME = 3600 * 1000; // 1시간 (밀리초)
-const MAX_FAILED_REQUESTS = 50; // 허용 가능한 최대 요청 실패 수
-const REQUEST_WINDOW = 60000; // 1분 (밀리초)
-const MAX_REQUESTS_PER_MINUTE = 100; // 1분당 최대 요청 수
-
-// 파란색 로그 출력 함수
 const logInfo = (message) => {
   console.log(`\x1b[34m%s\x1b[0m`, message); // 파란색 출력
 };
@@ -128,36 +99,6 @@ const getClientIp = (req) => {
 
   return ip.trim();
 };
-// 차단된 IP 목록 확인 API
-app.get('/list-blocked-ips', isAdmin, (req, res) => {
-  const blockedList = Array.from(blockedIPs.entries()).map(([ip, unblockTime]) => ({
-      ip,
-      unblockTime: new Date(unblockTime).toLocaleString(),
-  }));
-
-  res.json({ blockedIPs: blockedList });
-});
-// IP 차단 해제 API
-app.post('/unblock-ip', isAdmin, (req, res) => {
-  const { ip } = req.body; // 클라이언트에서 차단 해제할 IP를 전달받음
-
-  if (!ip) {
-      return res.status(400).json({ error: 'IP를 입력하세요.' });
-  }
-
-  if (blockedIPs.has(ip)) {
-      blockedIPs.delete(ip);
-      logger.info(`IP ${ip}의 차단이 해제되었습니다.`);
-      return res.json({ message: `IP ${ip}의 차단이 해제되었습니다.` });
-  } else {
-      return res.status(404).json({ error: `IP ${ip}는 차단된 상태가 아닙니다.` });
-  }
-});
-
-
-
-
-
 
 app.use((req, res, next) => {
   console.log(`req.ip: ${req.ip}`);
@@ -169,38 +110,10 @@ app.use((req, res, next) => {
 const isInternalIp = (ip) => {
   return ip === '127.0.0.1' || ip === '::1' || ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.');
 };
+
 const adminRouter = require('./src/routes/admin');
 app.use(adminRouter);
-const blockIp = (ip) => {
-  const unblockTime = Date.now() + BLOCK_TIME;
-  blockedIPs.set(ip, unblockTime);
-  console.log(`IP ${ip} 차단됨. 해제 시간: ${new Date(unblockTime).toLocaleString()}`);
-};
-// IP 차단 미들웨어
-app.use((req, res, next) => {
-  const ip = getClientIp(req);
-  const currentTime = Date.now();
 
-  // 내부 IP는 차단 로직 우회
-  if (isInternalIp(ip)) {
-    logInfo(`내부 IP ${ip}는 차단 대상에서 제외됩니다.`);
-    return next();
-  }
-
-  // 차단된 IP인지 확인
-  if (blockedIPs.has(ip)) {
-    const unblockTime = blockedIPs.get(ip);
-    if (currentTime < unblockTime) {
-      logInfo(`IP ${ip}는 현재 차단된 상태입니다. 차단 해제 시간: ${new Date(unblockTime).toLocaleString('ko-KR')}`);
-      return res.status(403).send('당신의 접근이 일시적으로 차단되었습니다. 나중에 다시 시도하세요.');
-    } else {
-      blockedIPs.delete(ip); // 차단 시간이 지났으면 차단 해제
-      logInfo(`IP ${ip}의 차단이 해제되었습니다.`);
-    }
-  }
-
-  next();
-});
 app.set('trust proxy', true);
 const nodemailer = require('nodemailer');
 
@@ -211,104 +124,6 @@ const transporter = nodemailer.createTransport({
     user: 'jungchwimisaenghwal63@gmail.com', // 개발자 이메일
     pass: 'dntt yvws cwls lqrt', // 이메일 비밀번호 또는 앱 비밀번호
   },
-});
-
-// 이메일 전송 함수
-const sendEmail = async (ip, startTime, unblockTime) => {
-  const mailOptions = {
-    from: 'jungchwimisaenghwal63@gmail.com', // 발신 이메일
-    to: 'jungchwimisaenghwal63@gmail.com', // 수신 이메일
-    subject: `IP 차단 알림: ${ip}`,
-    text: `IP ${ip}가 1분당 요청 제한을 초과하여 차단되었습니다.\n\n
-    - 차단 시작 시간: ${new Date(startTime).toLocaleString('ko-KR')}\n
-    - 차단 해제 예정 시간: ${new Date(unblockTime).toLocaleString('ko-KR')}\n\n
-    디도스 공격 가능성을 확인하세요.`,
-  };
-
-  try {
-    await transporter.sendMail(mailOptions);
-    console.log(`개발자에게 차단 이메일 전송 완료: ${ip}`);
-  } catch (error) {
-    console.error('이메일 전송 중 오류 발생:', error);
-  }
-};
-const unblockIp = (ip) => {
-  if (blockedIPs.has(ip)) {
-    blockedIPs.delete(ip);
-    console.log(`IP ${ip}의 차단이 해제되었습니다.`);
-  } else {
-    console.log(`IP ${ip}는 차단 목록에 없습니다.`);      
-  }
-};
-// 요청 감시 및 차단 로직
-app.use((req, res, next) => {
-  const ip = getClientIp(req);
-  const currentTime = Date.now();
-
-  // 내부 IP는 차단 로직 우회
-  if (isInternalIp(ip)) {
-    logInfo(`내부 IP ${ip}는 요청 제한에서 제외됩니다.`);
-    return next();
-  }
-
-  // 관리자는 차단하지 않음
-  const currentUser = req.session?.user; // 세션에서 사용자 정보 가져오기
-  if (currentUser && currentUser.role === 'admin') {
-    logInfo(`관리자 IP ${ip}는 차단 대상에서 제외됩니다.`);
-    return next();
-  }
-
-  // IP별 요청 빈도 기록
-  if (!ipRequestCounts[ip]) {
-    ipRequestCounts[ip] = [];
-  }
-
-  ipRequestCounts[ip].push(currentTime);
-  ipRequestCounts[ip] = ipRequestCounts[ip].filter(timestamp => currentTime - timestamp <= REQUEST_WINDOW);
-
-  if (ipRequestCounts[ip].length > MAX_REQUESTS_PER_MINUTE) {
-    blockedIPs.set(ip, Date.now() + BLOCK_TIME);
-    logInfo(`IP ${ip}가 1분당 요청 제한을 초과하여 차단되었습니다. 차단 해제 시간: ${new Date(Date.now() + BLOCK_TIME).toLocaleString('ko-KR')}`);
-    sendEmail(ip, startTime, unblockTime);
-    return res.status(403).send('1분 내 과도한 요청으로 인해 접근이 차단되었습니다.');
-   
-  }
-
-  // 실패 요청 기록 증가
-  failedRequests[ip] = (failedRequests[ip] || 0) + 1;
-
-  if (failedRequests[ip] > MAX_FAILED_REQUESTS) {
-    blockedIPs.set(ip, Date.now() + BLOCK_TIME); // 현재 시간 기준 차단 시간 설정
-    logInfo(`IP ${ip}가 너무 많은 실패 요청으로 인해 차단되었습니다. 차단 해제 시간: ${new Date(Date.now() + BLOCK_TIME).toLocaleString('ko-KR')}`);
-    return res.status(403).send('너무 많은 요청으로 인해 접근이 일시적으로 차단되었습니다.');
-  }
-
-  logInfo(`IP ${ip}의 요청 실패 횟수: ${failedRequests[ip]} / ${MAX_FAILED_REQUESTS}`);
-  next();
-});
-
-
-
-
-const shopRouter = require('./src/routes/shop_router');
-app.use('/', shopRouter);
-
-
-
-// 요청 정상 처리 후 실패 기록 초기화
-app.use((req, res, next) => {
-  const ip = getClientIp(req);
-  
-  // 내부 IP는 실패 기록 초기화에서 제외
-  if (isInternalIp(ip)) {
-    return next();
-  }
-
-  if (failedRequests[ip]) {
-    delete failedRequests[ip]; // 정상 요청 시 실패 기록 삭제
-    logInfo(`IP ${ip}의 요청 실패 기록이 초기화되었습니다.`);
-  }
-  next();
 });
 
 // Middleware to log all requests centrally
@@ -414,41 +229,46 @@ app.get('/logs', isAdmin, (req, res) => {
   });
 });
 
+// Log search API
 app.post('/logs/view', isAdmin, async (req, res) => {
   const { startTime, endTime, keyword, level } = req.body;
 
   try {
-    const userId = req.user?.user_id || 'Unknown'; // req.user가 없을 경우 대비
-    console.log(`Log search requested by user ID: ${userId}, Filters: ${JSON.stringify(req.body)}`);
+    // 로그 파일 읽기
+    const logData = fs.readFileSync(logFilePath, 'utf8');
+    const logs = logData
+      .split('\n')
+      .filter(Boolean)
+      .map(line => JSON.parse(line))
+      .filter(log => {
+        const logTime = new Date(log.timestamp).getTime();
+        const matchesLevel = level ? log.level.toLowerCase() === level.toLowerCase() : true;
+        const matchesKeyword = keyword ? log.message.includes(keyword) : true;
+        const matchesTime =
+          (!startTime || logTime >= new Date(startTime).getTime()) &&
+          (!endTime || logTime <= new Date(endTime).getTime());
+        return matchesLevel && matchesKeyword && matchesTime;
+      });
 
-    const logs = await searchLogs({ startTime, endTime, keyword, level });
     res.render('logs', {
       title: 'Log Viewer',
       logs,
-      error: null
+      error: null,
     });
   } catch (error) {
-    const userId = req.user?.user_id || 'Unknown'; // 에러 발생 시에도 안전하게 user_id를 확인
-    console.error(`Error fetching logs for user ID: ${userId}`, error.message);
-    res.status(500).render('logs', {
+    console.error(`로그 검색 중 오류 발생: ${error.message}`);
+    res.render('logs', {
       title: 'Log Viewer',
       logs: [],
-      error: '로그 검색 중 오류가 발생했습니다.'
+      error: '로그 검색 중 오류가 발생했습니다.',
     });
   }
 });
-
-
-
-
-
-// Express 미들웨어로 IP 감지 및 로깅
-const logClientIp = (req, res, next) => {
-  const ip = getClientIp(req);
-  console.log(`클라이언트 IP: ${ip}`);
-  next();
-};
-
+const ipBlockRouter = require('./src/routes/ip_block_router');
+app.use('/', ipBlockRouter);
+// shop_router.js 추가
+const shopRouter = require('./src/routes/shop_router'); // 라우터 경로 확인
+app.use('/shop', shopRouter); // '/shop' 경로에 라우터 적용
 
 // Start server
 app.listen(port, () => {
