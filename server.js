@@ -268,7 +268,7 @@ const ipBlockRouter = require('./src/routes/ip_block_router');
 app.use('/', ipBlockRouter);
 // shop_router.js 추가
 const shopRouter = require('./src/routes/shop_router'); // 라우터 경로 확인
-app.use('/shop', shopRouter); // '/shop' 경로에 라우터 적용
+app.use('/', shopRouter); // '/shop' 경로에 라우터 적용
 
 // Start server
 app.listen(port, () => {
