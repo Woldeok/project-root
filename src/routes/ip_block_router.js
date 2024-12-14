@@ -2,11 +2,13 @@ const express = require('express');
 const nodemailer = require('nodemailer');
 const mysql = require('mysql2/promise');
 const { exec } = require('child_process'); // 방화벽 명령어 실행용
+const jwt = require('jsonwebtoken');
 const router = express.Router();
 
 const BLOCK_TIME = 3600 * 1000; // 1시간 (밀리초)
 const MAX_REQUESTS_PER_MINUTE = 100; // 1분당 최대 요청 허용 수
 const REQUEST_WINDOW = 60000; // 1분 (밀리초)
+const SECRET_KEY = process.env.SECRET_KEY || 'your_secret_key'; // 비밀 키
 const requestCounts = new Map(); // IP별 요청 기록
 
 // MySQL 연결 설정
@@ -56,7 +58,7 @@ const getClientIp = (req) => {
 
 const blockIpOnFirewall = (ip) => {
     const command = `netsh advfirewall firewall add rule name="Block IP ${ip}" dir=in interface=any action=block remoteip=${ip}`;
-    exec(command, (err, stdout, stderr) => {
+    exec(command, (err) => {
         if (err) {
             console.error(`방화벽 차단 오류: ${err.message}`);
             return;
@@ -67,7 +69,7 @@ const blockIpOnFirewall = (ip) => {
 
 const unblockIpOnFirewall = (ip) => {
     const command = `netsh advfirewall firewall delete rule name="Block IP ${ip}"`;
-    exec(command, (err, stdout, stderr) => {
+    exec(command, (err) => {
         if (err) {
             console.error(`방화벽 해제 오류: ${err.message}`);
             return;
@@ -75,7 +77,6 @@ const unblockIpOnFirewall = (ip) => {
         console.log(`방화벽에서 IP 해제 완료: ${ip}`);
     });
 };
-
 // 차단 기록 추가
 const addBlockedIpToHistory = async (ip, unblockTime, reason = '과도한 요청') => {
     const query = `
@@ -124,7 +125,32 @@ const isIpWhitelisted = async (ip) => {
     return rows.length > 0;
 };
 
-// 미들웨어
+// JWT 인증 미들웨어
+const authenticateJWT = (req, res, next) => {
+    const token = req.cookies.auth_token; // 쿠키에서 JWT 토큰 추출
+    if (!token) {
+        return res.status(401).json({ error: '토큰이 없습니다. 인증이 필요합니다.' });
+    }
+
+    try {
+        const decoded = jwt.verify(token, SECRET_KEY);
+        req.user = decoded; // 디코딩된 사용자 정보 저장
+        next();
+    } catch (err) {
+        console.error('JWT 인증 실패:', err.message);
+        return res.status(403).json({ error: '유효하지 않은 토큰입니다.' });
+    }
+};
+
+// 관리자 전용 인증 미들웨어
+const adminAuthMiddleware = (req, res, next) => {
+    if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ error: '관리자 권한이 필요합니다.' });
+    }
+    next();
+};
+
+// IP 요청 필터링 미들웨어
 router.use(async (req, res, next) => {
     const ip = getClientIp(req);
     const currentTime = Date.now();
@@ -180,87 +206,29 @@ router.use(async (req, res, next) => {
 
     next(); // 차단되지 않은 경우에만 다음 요청 처리
 });
-
-// 차단 목록 확인
-router.get('/list-blocked-ips', async (req, res) => {
-    const query = `SELECT * FROM blocked_ips ORDER BY created_at DESC;`;
-    const [result] = await db.query(query);
-    res.render('list-blocked-ips', { blockedIps: result });
-});
-
-// 차단 기록 조회
-router.get('/history', async (req, res) => {
-    const query = `SELECT * FROM blocked_ip_history ORDER BY created_at DESC;`;
-    const [result] = await db.query(query);
-    res.render('history', { history: result });
-});
-
-// 화이트리스트에 IP 추가
-router.post('/whitelist-ip', async (req, res) => {
-    const { ip } = req.body;
-    if (!ip) return res.status(400).json({ error: 'IP를 입력하세요.' });
-
+// 차단 목록 확인 (GET 요청, 관리자만 접근 가능)
+router.get('/list-blocked-ips', authenticateJWT, adminAuthMiddleware, async (req, res) => {
     try {
-        const query = `INSERT INTO whitelisted_ips (ip_address) VALUES (?) ON DUPLICATE KEY UPDATE created_at = CURRENT_TIMESTAMP;`;
-        await db.query(query, [ip]);
-        console.log(`IP ${ip}가 화이트리스트에 추가되었습니다.`);
-        res.json({ message: `IP ${ip}가 화이트리스트에 추가되었습니다.` });
-    } catch (error) {
-        console.error(`화이트리스트 추가 중 오류: ${error.message}`);
-        res.status(500).json({ error: '화이트리스트 추가 중 오류 발생.' });
-    }
-});
-
-// 화이트리스트 목록 조회
-router.get('/list-whitelisted-ips', async (req, res) => {
-    try {
-        const query = `SELECT * FROM whitelisted_ips ORDER BY created_at DESC;`;
+        const query = `SELECT * FROM blocked_ips ORDER BY created_at DESC;`;
         const [result] = await db.query(query);
-        res.render('list-whitelisted-ips', { whitelistedIps: result });
+        res.render('list-blocked-ips', { blockedIps: result });
     } catch (error) {
-        console.error(`화이트리스트 조회 중 오류: ${error.message}`);
-        res.status(500).json({ error: '화이트리스트 조회 중 오류 발생.' });
+        console.error(`차단 목록 조회 중 오류: ${error.message}`);
+        res.status(500).json({ error: '차단 목록 조회 중 오류 발생.' });
     }
 });
 
-// IP 차단 해제 API
-router.post('/unblock-ip', async (req, res) => {
-    const { ip } = req.body;
-    if (!ip) return res.status(400).json({ error: 'IP를 입력하세요.' });
-
-    await unblockIpInDb(ip);
-    await updateUnblockedIpInHistory(ip);
-    unblockIpOnFirewall(ip); // 방화벽에서 해제
-    res.redirect('/list-blocked-ips');
-});
-
-const jwt = require('jsonwebtoken');
-const SECRET_KEY = process.env.SECRET_KEY || 'your_secret_key'; // 비밀 키
-
-// JWT 인증 미들웨어
-const authenticateJWT = (req, res, next) => {
-    const token = req.cookies.auth_token; // 쿠키에서 JWT 토큰 추출
-    if (!token) {
-        return res.status(401).json({ error: '토큰이 없습니다. 인증이 필요합니다.' });
-    }
-
+// 차단 기록 조회 (GET 요청, 관리자만 접근 가능)
+router.get('/history', authenticateJWT, adminAuthMiddleware, async (req, res) => {
     try {
-        const decoded = jwt.verify(token, SECRET_KEY);
-        req.user = decoded; // 디코딩된 사용자 정보 저장
-        next();
-    } catch (err) {
-        console.error('JWT 인증 실패:', err.message);
-        return res.status(403).json({ error: '유효하지 않은 토큰입니다.' });
+        const query = `SELECT * FROM blocked_ip_history ORDER BY created_at DESC;`;
+        const [result] = await db.query(query);
+        res.render('history', { history: result });
+    } catch (error) {
+        console.error(`차단 기록 조회 중 오류: ${error.message}`);
+        res.status(500).json({ error: '차단 기록 조회 중 오류 발생.' });
     }
-};
-
-// 관리자 전용 인증 미들웨어
-const adminAuthMiddleware = (req, res, next) => {
-    if (!req.user || req.user.role !== 'admin') {
-        return res.status(403).json({ error: '관리자 권한이 필요합니다.' });
-    }
-    next();
-};
+});
 
 // IP 직접 차단 화면 렌더링 (GET 요청, 관리자만 접근 가능)
 router.get('/block-ip', authenticateJWT, adminAuthMiddleware, async (req, res) => {
@@ -292,6 +260,52 @@ router.post('/block-ip', authenticateJWT, adminAuthMiddleware, async (req, res) 
         res.render('block-ip', { message: 'IP 차단 중 오류가 발생했습니다.' });
     }
 });
+// 화이트리스트에 IP 추가 (POST 요청, 관리자 인증 없이 접근 가능)
+router.post('/whitelist-ip', authenticateJWT, async (req, res) => {
+    const { ip } = req.body;
+    if (!ip) return res.status(400).json({ error: 'IP를 입력하세요.' });
 
+    try {
+        const query = `
+            INSERT INTO whitelisted_ips (ip_address) VALUES (?) 
+            ON DUPLICATE KEY UPDATE created_at = CURRENT_TIMESTAMP;
+        `;
+        await db.query(query, [ip]);
+        console.log(`IP ${ip}가 화이트리스트에 추가되었습니다.`);
+        res.json({ message: `IP ${ip}가 화이트리스트에 추가되었습니다.` });
+    } catch (error) {
+        console.error(`화이트리스트 추가 중 오류: ${error.message}`);
+        res.status(500).json({ error: '화이트리스트 추가 중 오류 발생.' });
+    }
+});
+
+// 화이트리스트 목록 조회 (GET 요청, 관리자 인증 없이 접근 가능)
+router.get('/list-whitelisted-ips', authenticateJWT, async (req, res) => {
+    try {
+        const query = `SELECT * FROM whitelisted_ips ORDER BY created_at DESC;`;
+        const [result] = await db.query(query);
+        res.render('list-whitelisted-ips', { whitelistedIps: result });
+    } catch (error) {
+        console.error(`화이트리스트 조회 중 오류: ${error.message}`);
+        res.status(500).json({ error: '화이트리스트 조회 중 오류 발생.' });
+    }
+});
+
+// IP 차단 해제 API (POST 요청, 관리자만 접근 가능)
+router.post('/unblock-ip', authenticateJWT, adminAuthMiddleware, async (req, res) => {
+    const { ip } = req.body;
+    if (!ip) return res.status(400).json({ error: 'IP를 입력하세요.' });
+
+    try {
+        await unblockIpInDb(ip);
+        await updateUnblockedIpInHistory(ip);
+        unblockIpOnFirewall(ip); // 방화벽에서 해제
+        console.log(`IP ${ip}가 성공적으로 차단 해제되었습니다.`);
+        res.redirect('/list-blocked-ips');
+    } catch (error) {
+        console.error(`IP 차단 해제 중 오류: ${error.message}`);
+        res.status(500).json({ error: 'IP 차단 해제 중 오류 발생.' });
+    }
+});
 
 module.exports = router;

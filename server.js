@@ -269,7 +269,10 @@ app.use('/', ipBlockRouter);
 // shop_router.js 추가
 const shopRouter = require('./src/routes/shop_router'); // 라우터 경로 확인
 app.use('/', shopRouter); // '/shop' 경로에 라우터 적용
-
+const authRouterr = require('./src/routes/authRouter'); // 네이버 인증 관련 라우터
+app.use('/', authRouterr); // 네이버 인증 라우터
+const kakaoLoginRouter = require('./src/routes/kakao_login_router'); // 라우터 경로에 맞게 수정
+app.use('/', kakaoLoginRouter); // 네이버 인증 라우터
 // Start server
 app.listen(port, () => {
   logger.info(`Server running on http://localhost:${port}`);
