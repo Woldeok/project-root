@@ -7,7 +7,7 @@ const path = require('path');
 const bodyParser = require('body-parser');
 const db = require('./src/controllers/db');
 const authRouter = require('./src/controllers/auth');
-const postRouter = require('./src/services/post_service_router');
+const postRouter = require('./src/routes/post_service_router');
 const fs = require('fs');
 const winston = require('winston');
 const session = require('express-session');
@@ -53,9 +53,14 @@ logger.stream = {
 
 const app = express();
 const http = require('http');
-
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 const port = process.env.PORT || 3000;
-
+const ipBlockRouter = require('./src/routes/ip_block_router');
+app.use('/', ipBlockRouter);
+app.use(ipBlockRouter);
+app.use('/board', ipBlockRouter);
+app.use(ipBlockRouter);
 // Session configuration
 app.use(session({
   secret: process.env.SESSION_SECRET || 'default_secret',
@@ -264,8 +269,7 @@ app.post('/logs/view', isAdmin, async (req, res) => {
     });
   }
 });
-const ipBlockRouter = require('./src/routes/ip_block_router');
-app.use('/', ipBlockRouter);
+
 // shop_router.js 추가
 const shopRouter = require('./src/routes/shop_router'); // 라우터 경로 확인
 app.use('/', shopRouter); // '/shop' 경로에 라우터 적용

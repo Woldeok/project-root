@@ -1,7 +1,7 @@
 const express = require('express');
 const nodemailer = require('nodemailer');
 const mysql = require('mysql2/promise');
-const { exec } = require('child_process');
+const { exec } = require('child_process'); // 방화벽 명령어 실행용
 const jwt = require('jsonwebtoken');
 const router = express.Router();
 
@@ -22,8 +22,8 @@ const db = mysql.createPool({
 });
 
 db.getConnection()
-    .then(() => console.log('\x1b[32m%s\x1b[0m', 'MySQL Database connected successfully!'))
-    .catch((err) => console.error('\x1b[31m%s\x1b[0m', 'MySQL connection error:', err));
+  .then(() => console.log('\x1b[36m%s\x1b[0m', 'MySQL Database connected successfully!')) // 하늘색 로그
+  .catch((err) => console.error('\x1b[31m%s\x1b[0m', 'MySQL connection error:', err)); // 빨간색 로그
 
 // 이메일 전송 설정
 const transporter = nodemailer.createTransport({
@@ -34,54 +34,57 @@ const transporter = nodemailer.createTransport({
     },
 });
 
-// 이메일 전송 함수
-const sendEmail = async (subject, message) => {
+const sendEmail = async (ip, unblockTime) => {
     const mailOptions = {
         from: 'jungchwimisaenghwal63@gmail.com',
         to: 'jungchwimisaenghwal63@gmail.com',
-        subject,
-        text: message,
+        subject: `IP 차단 알림: ${ip}`,
+        text: `IP ${ip}가 비정상적인 트래픽으로 차단되었습니다.\n\n- 차단 해제 예정 시간: ${new Date(unblockTime).toLocaleString('ko-KR')}`,
     };
     try {
         await transporter.sendMail(mailOptions);
-        console.log('\x1b[32m%s\x1b[0m', `Email sent: ${subject}`);
+        console.log('\x1b[36m%s\x1b[0m', `관리자에게 차단 이메일 전송 완료: ${ip}`); // 하늘색 로그
     } catch (error) {
-        console.error('\x1b[31m%s\x1b[0m', 'Email sending error:', error);
+        console.error('\x1b[31m%s\x1b[0m', '이메일 전송 중 오류 발생:', error); // 빨간색 로그
     }
 };
 
-// 클라이언트 IP 가져오기
 const getClientIp = (req) => {
-    let ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress || req.ip;
+    let ip = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || req.connection.remoteAddress || req.ip;
     if (ip && ip.includes(',')) ip = ip.split(',')[0];
     if (ip && ip.startsWith('::ffff:')) ip = ip.substring(7);
     return ip.trim();
 };
-
-// 방화벽 차단 함수
 const blockIpOnFirewall = (ip) => {
     const command = `netsh advfirewall firewall add rule name="Block IP ${ip}" dir=in interface=any action=block remoteip=${ip}`;
     exec(command, (err) => {
         if (err) {
-            console.error('\x1b[31m%s\x1b[0m', `Failed to block IP on firewall: ${err.message}`);
+            console.error('\x1b[31m%s\x1b[0m', `방화벽 차단 오류: ${err.message}`); // 빨간색 로그
             return;
         }
-        console.log('\x1b[32m%s\x1b[0m', `Blocked IP on firewall: ${ip}`);
+        console.log('\x1b[36m%s\x1b[0m', `방화벽에서 IP 차단 완료: ${ip}`); // 하늘색 로그
     });
 };
 
-// 방화벽 차단 해제 함수
 const unblockIpOnFirewall = (ip) => {
     const command = `netsh advfirewall firewall delete rule name="Block IP ${ip}"`;
     exec(command, (err) => {
         if (err) {
-            console.error('\x1b[31m%s\x1b[0m', `Failed to unblock IP on firewall: ${err.message}`);
+            console.error('\x1b[31m%s\x1b[0m', `방화벽 해제 오류: ${err.message}`); // 빨간색 로그
             return;
         }
-        console.log('\x1b[32m%s\x1b[0m', `Unblocked IP on firewall: ${ip}`);
+        console.log('\x1b[36m%s\x1b[0m', `방화벽에서 IP 해제 완료: ${ip}`); // 하늘색 로그
     });
 };
-// 차단 기록 추가 함수
+
+// 화이트리스트 확인
+const isIpWhitelisted = async (ip) => {
+    const query = `SELECT 1 FROM whitelisted_ips WHERE ip_address = ? LIMIT 1;`;
+    const [rows] = await db.query(query, [ip]);
+    return rows.length > 0;
+};
+
+// 차단 기록 추가
 const addBlockedIpToHistory = async (ip, unblockTime, reason = '과도한 요청') => {
     const query = `
         INSERT INTO blocked_ip_history (ip_address, blocked_until, reason)
@@ -89,10 +92,10 @@ const addBlockedIpToHistory = async (ip, unblockTime, reason = '과도한 요청
     `;
     const values = [ip, new Date(unblockTime), reason];
     await db.query(query, values);
-    console.log('\x1b[32m%s\x1b[0m', `Added blocked IP to history: ${ip}`);
+    console.log('\x1b[36m%s\x1b[0m', `IP ${ip}가 차단 기록 테이블에 추가되었습니다.`); // 하늘색 로그
 };
 
-// 차단 해제 기록 업데이트 함수
+// 차단 해제 기록 업데이트
 const updateUnblockedIpInHistory = async (ip) => {
     const query = `
         UPDATE blocked_ip_history
@@ -100,10 +103,9 @@ const updateUnblockedIpInHistory = async (ip) => {
         WHERE ip_address = ? AND unblocked_at IS NULL;
     `;
     await db.query(query, [ip]);
-    console.log('\x1b[32m%s\x1b[0m', `Updated unblock time for IP: ${ip}`);
+    console.log('\x1b[36m%s\x1b[0m', `IP ${ip}의 차단 해제 시간이 기록되었습니다.`); // 하늘색 로그
 };
-
-// 차단 목록 DB 업데이트 함수
+// 차단 목록 DB 업데이트
 const blockIpInDb = async (ip, unblockTime, reason = '과도한 요청') => {
     const query = `
         INSERT INTO blocked_ips (ip_address, blocked_until, reason)
@@ -112,131 +114,131 @@ const blockIpInDb = async (ip, unblockTime, reason = '과도한 요청') => {
     `;
     const values = [ip, new Date(unblockTime), reason, new Date(unblockTime), reason];
     await db.query(query, values);
-    console.log('\x1b[32m%s\x1b[0m', `IP blocked in DB: ${ip}`);
+    console.log('\x1b[36m%s\x1b[0m', `IP ${ip}가 차단 DB에 기록되었습니다.`); // 하늘색 로그
 };
 
-// 차단 해제 DB 업데이트 함수
+// IP 차단 해제 DB 업데이트
 const unblockIpInDb = async (ip) => {
     const query = `DELETE FROM blocked_ips WHERE ip_address = ?;`;
     await db.query(query, [ip]);
-    console.log('\x1b[32m%s\x1b[0m', `IP unblocked in DB: ${ip}`);
+    console.log('\x1b[36m%s\x1b[0m', `IP ${ip}의 차단이 DB에서 해제되었습니다.`); // 하늘색 로그
 };
 
-// 화이트리스트 확인 함수
-const isIpWhitelisted = async (ip) => {
-    const query = `SELECT 1 FROM whitelisted_ips WHERE ip_address = ? LIMIT 1;`;
-    const [rows] = await db.query(query, [ip]);
-    return rows.length > 0;
-};
-
-// 요청 필터링 및 DDoS 방어 미들웨어
+// IP 요청 필터링 미들웨어
 router.use(async (req, res, next) => {
     const ip = getClientIp(req);
     const currentTime = Date.now();
 
-    console.log('\x1b[35m%s\x1b[0m', `[Access Log] IP: ${ip}, Path: ${req.originalUrl}, Method: ${req.method}, Time: ${new Date(currentTime).toLocaleString()}`);
+    console.log('\x1b[35m%s\x1b[0m', `[접속 로그] IP: ${ip}, 요청 경로: ${req.originalUrl}, 요청 메서드: ${req.method}, 현재 시간: ${new Date(currentTime).toLocaleString('ko-KR')}`); // 핑크색 로그
 
-    // 화이트리스트 확인
+    // 화이트리스트 체크
     if (await isIpWhitelisted(ip)) {
-        console.log('\x1b[32m%s\x1b[0m', `IP ${ip} is whitelisted.`);
-        return next();
+        console.log('\x1b[36m%s\x1b[0m', `IP ${ip}는 화이트리스트에 포함되어 차단되지 않습니다.`); // 하늘색 로그
+        return next(); // 요청을 허용
     }
 
-    // DB에서 차단 상태 확인
     try {
-        const query = `SELECT blocked_until FROM blocked_ips WHERE ip_address = ? AND blocked_until > CURRENT_TIMESTAMP;`;
-        const [rows] = await db.query(query, [ip]);
+        // DB에서 차단 상태 확인
+        const dbCheckQuery = `SELECT blocked_until FROM blocked_ips WHERE ip_address = ? AND blocked_until > CURRENT_TIMESTAMP;`;
+        const [dbResult] = await db.query(dbCheckQuery, [ip]);
 
-        if (rows.length > 0) {
-            const unblockTime = rows[0].blocked_until;
-            console.log('\x1b[31m%s\x1b[0m', `Blocked IP: ${ip}, Unblock time: ${new Date(unblockTime).toLocaleString()}`);
+        if (dbResult.length > 0) {
+            const unblockTime = dbResult[0].blocked_until;
+            console.log('\x1b[31m%s\x1b[0m', `IP ${ip}는 현재 차단된 상태입니다. 차단 해제 시간: ${new Date(unblockTime).toLocaleString('ko-KR')}`); // 빨간색 로그
+
+            // 방화벽에서도 차단 적용
             blockIpOnFirewall(ip);
-            return res.status(403).send('Access denied. Your IP is temporarily blocked.');
+            res.status(403).end(); // 응답 종료
+            return; // 다음 요청을 처리하지 않음
         }
     } catch (error) {
-        console.error('\x1b[31m%s\x1b[0m', `Error checking blocked IP in DB: ${error.message}`);
-        return res.status(500).send('Internal server error.');
+        console.error('\x1b[31m%s\x1b[0m', `DB 쿼리 오류: ${error.message}`); // 빨간색 로그
+        res.status(500).send('서버 오류로 인해 요청을 처리할 수 없습니다.');
+        return; // 다음 요청을 처리하지 않음
     }
 
-    // 요청 기록 관리
     if (!requestCounts.has(ip)) {
         requestCounts.set(ip, []);
     }
+
     const timestamps = requestCounts.get(ip);
     timestamps.push(currentTime);
-
     requestCounts.set(ip, timestamps.filter((timestamp) => currentTime - timestamp <= REQUEST_WINDOW));
 
-    console.log('\x1b[36m%s\x1b[0m', `[Request Log] IP: ${ip}, Requests in the past minute: ${timestamps.length}`);
+    console.log('\x1b[35m%s\x1b[0m', `[요청 기록] IP: ${ip}, 요청 횟수: ${timestamps.length}`); // 핑크색 로그
 
-    // 요청 초과 차단
     if (timestamps.length > MAX_REQUESTS_PER_MINUTE) {
         const unblockTime = currentTime + BLOCK_TIME;
         await blockIpInDb(ip, unblockTime);
         await addBlockedIpToHistory(ip, unblockTime);
-        blockIpOnFirewall(ip);
-        sendEmail('DDoS Alert', `IP ${ip} has been blocked due to excessive requests.`);
-        console.log('\x1b[31m%s\x1b[0m', `IP ${ip} has been blocked due to exceeding request limits.`);
-        return res.status(403).send('Your IP has been blocked due to excessive requests.');
+        blockIpOnFirewall(ip); // 방화벽에서도 차단 적용
+        sendEmail(ip, unblockTime);
+        console.log('\x1b[31m%s\x1b[0m', `IP ${ip}가 1분당 요청 제한(${MAX_REQUESTS_PER_MINUTE})을 초과하여 차단되었습니다.`); // 빨간색 로그
+        res.status(403).end(); // 응답 종료
+        return; // 다음 요청을 처리하지 않음
     }
 
-    next();
+    next(); // 차단되지 않은 경우에만 다음 요청 처리
 });
-// IP 차단 API (관리자 인증 필요)
+// 차단 목록 확인 (GET 요청, 관리자 인증 없이 접근 가능)
+router.get('/list-blocked-ips', async (req, res) => {
+    try {
+        const query = `SELECT * FROM blocked_ips ORDER BY created_at DESC;`;
+        const [result] = await db.query(query);
+        res.render('list-blocked-ips', { blockedIps: result });
+    } catch (error) {
+        console.error('\x1b[31m%s\x1b[0m', `차단 목록 조회 중 오류: ${error.message}`); // 빨간색 로그
+        res.status(500).json({ error: '차단 목록 조회 중 오류 발생.' });
+    }
+});
+
+// 차단 기록 조회 (GET 요청, 관리자 인증 없이 접근 가능)
+router.get('/history', async (req, res) => {
+    try {
+        const query = `SELECT * FROM blocked_ip_history ORDER BY created_at DESC;`;
+        const [result] = await db.query(query);
+        res.render('history', { history: result });
+    } catch (error) {
+        console.error('\x1b[31m%s\x1b[0m', `차단 기록 조회 중 오류: ${error.message}`); // 빨간색 로그
+        res.status(500).json({ error: '차단 기록 조회 중 오류 발생.' });
+    }
+});
+
+// IP 직접 차단 화면 렌더링 (GET 요청, 관리자 인증 없이 접근 가능)
+router.get('/block-ip', async (req, res) => {
+    try {
+        res.render('block-ip', { message: null });
+    } catch (error) {
+        console.error('\x1b[31m%s\x1b[0m', `IP 차단 화면 렌더링 중 오류: ${error.message}`); // 빨간색 로그
+        res.status(500).send('서버 오류로 인해 화면을 렌더링할 수 없습니다.');
+    }
+});
+
+// IP 직접 차단 처리 (POST 요청, 관리자 인증 없이 접근 가능)
 router.post('/block-ip', async (req, res) => {
     const { ip, reason } = req.body;
 
     if (!ip || !reason) {
-        console.error('\x1b[31m%s\x1b[0m', 'Error: IP and reason are required to block an IP.');
-        return res.status(400).send('IP and reason are required.');
+        return res.render('block-ip', { message: 'IP와 차단 사유를 모두 입력해주세요.' });
     }
 
     try {
         const unblockTime = Date.now() + BLOCK_TIME;
         await blockIpInDb(ip, unblockTime, reason);
         await addBlockedIpToHistory(ip, unblockTime, reason);
-        blockIpOnFirewall(ip);
-
-        sendEmail('IP Blocked', `IP ${ip} has been blocked for the following reason: ${reason}`);
-        console.log('\x1b[31m%s\x1b[0m', `IP ${ip} blocked successfully.`);
-        res.status(200).send(`IP ${ip} has been successfully blocked.`);
+        blockIpOnFirewall(ip); // 방화벽에서도 차단
+        console.log('\x1b[36m%s\x1b[0m', `IP ${ip}가 직접 차단되었습니다. 사유: ${reason}`); // 하늘색 로그
+        res.render('block-ip', { message: `IP ${ip}가 성공적으로 차단되었습니다.` });
     } catch (error) {
-        console.error('\x1b[31m%s\x1b[0m', `Error blocking IP ${ip}: ${error.message}`);
-        res.status(500).send('Error occurred while blocking the IP.');
+        console.error('\x1b[31m%s\x1b[0m', `IP 직접 차단 중 오류: ${error.message}`); // 빨간색 로그
+        res.render('block-ip', { message: 'IP 차단 중 오류가 발생했습니다.' });
     }
 });
 
-// IP 차단 해제 API
-router.post('/unblock-ip', async (req, res) => {
-    const { ip } = req.body;
-
-    if (!ip) {
-        console.error('\x1b[31m%s\x1b[0m', 'Error: IP is required to unblock.');
-        return res.status(400).send('IP is required.');
-    }
-
-    try {
-        await unblockIpInDb(ip);
-        await updateUnblockedIpInHistory(ip);
-        unblockIpOnFirewall(ip);
-
-        sendEmail('IP Unblocked', `IP ${ip} has been unblocked.`);
-        console.log('\x1b[32m%s\x1b[0m', `IP ${ip} unblocked successfully.`);
-        res.status(200).send(`IP ${ip} has been successfully unblocked.`);
-    } catch (error) {
-        console.error('\x1b[31m%s\x1b[0m', `Error unblocking IP ${ip}: ${error.message}`);
-        res.status(500).send('Error occurred while unblocking the IP.');
-    }
-});
-
-// 화이트리스트에 IP 추가
+// 화이트리스트에 IP 추가 (POST 요청, 관리자 인증 없이 접근 가능)
 router.post('/whitelist-ip', async (req, res) => {
     const { ip } = req.body;
-
-    if (!ip) {
-        console.error('\x1b[31m%s\x1b[0m', 'Error: IP is required to whitelist.');
-        return res.status(400).send('IP is required.');
-    }
+    if (!ip) return res.status(400).json({ error: 'IP를 입력하세요.' });
 
     try {
         const query = `
@@ -244,85 +246,41 @@ router.post('/whitelist-ip', async (req, res) => {
             ON DUPLICATE KEY UPDATE created_at = CURRENT_TIMESTAMP;
         `;
         await db.query(query, [ip]);
-
-        sendEmail('IP Whitelisted', `IP ${ip} has been added to the whitelist.`);
-        console.log('\x1b[32m%s\x1b[0m', `IP ${ip} added to whitelist.`);
-        res.status(200).send(`IP ${ip} has been added to the whitelist.`);
+        console.log('\x1b[36m%s\x1b[0m', `IP ${ip}가 화이트리스트에 추가되었습니다.`); // 하늘색 로그
+        res.json({ message: `IP ${ip}가 화이트리스트에 추가되었습니다.` });
     } catch (error) {
-        console.error('\x1b[31m%s\x1b[0m', `Error adding IP ${ip} to whitelist: ${error.message}`);
-        res.status(500).send('Error occurred while adding IP to the whitelist.');
+        console.error('\x1b[31m%s\x1b[0m', `화이트리스트 추가 중 오류: ${error.message}`); // 빨간색 로그
+        res.status(500).json({ error: '화이트리스트 추가 중 오류 발생.' });
     }
 });
 
-// 화이트리스트에서 IP 제거
-router.post('/remove-whitelist-ip', async (req, res) => {
-    const { ip } = req.body;
-
-    if (!ip) {
-        console.error('\x1b[31m%s\x1b[0m', 'Error: IP is required to remove from whitelist.');
-        return res.status(400).send('IP is required.');
-    }
-
-    try {
-        const query = `DELETE FROM whitelisted_ips WHERE ip_address = ?;`;
-        await db.query(query, [ip]);
-
-        sendEmail('IP Removed from Whitelist', `IP ${ip} has been removed from the whitelist.`);
-        console.log('\x1b[32m%s\x1b[0m', `IP ${ip} removed from whitelist.`);
-        res.status(200).send(`IP ${ip} has been removed from the whitelist.`);
-    } catch (error) {
-        console.error('\x1b[31m%s\x1b[0m', `Error removing IP ${ip} from whitelist: ${error.message}`);
-        res.status(500).send('Error occurred while removing IP from the whitelist.');
-    }
-});
-// 차단된 IP 목록 조회
-router.get('/list-blocked-ips', async (req, res) => {
-    try {
-        const query = `SELECT * FROM blocked_ips ORDER BY created_at DESC;`;
-        const [result] = await db.query(query);
-
-        console.log('\x1b[32m%s\x1b[0m', `Blocked IP list retrieved successfully.`);
-        res.status(200).json({ blockedIps: result });
-    } catch (error) {
-        console.error('\x1b[31m%s\x1b[0m', `Error fetching blocked IP list: ${error.message}`);
-        res.status(500).send('Error occurred while fetching the blocked IP list.');
-    }
-});
-
-// 차단 기록 조회
-router.get('/history', async (req, res) => {
-    try {
-        const query = `SELECT * FROM blocked_ip_history ORDER BY created_at DESC;`;
-        const [result] = await db.query(query);
-
-        console.log('\x1b[32m%s\x1b[0m', `Blocked IP history retrieved successfully.`);
-        res.status(200).json({ history: result });
-    } catch (error) {
-        console.error('\x1b[31m%s\x1b[0m', `Error fetching blocked IP history: ${error.message}`);
-        res.status(500).send('Error occurred while fetching the blocked IP history.');
-    }
-});
-
-// 화이트리스트 조회
+// 화이트리스트 목록 조회 (GET 요청, 관리자 인증 없이 접근 가능)
 router.get('/list-whitelisted-ips', async (req, res) => {
     try {
         const query = `SELECT * FROM whitelisted_ips ORDER BY created_at DESC;`;
         const [result] = await db.query(query);
-
-        console.log('\x1b[32m%s\x1b[0m', `Whitelisted IPs retrieved successfully.`);
-        res.status(200).json({ whitelistedIps: result });
+        res.render('list-whitelisted-ips', { whitelistedIps: result });
     } catch (error) {
-        console.error('\x1b[31m%s\x1b[0m', `Error fetching whitelisted IPs: ${error.message}`);
-        res.status(500).send('Error occurred while fetching the whitelist.');
+        console.error('\x1b[31m%s\x1b[0m', `화이트리스트 조회 중 오류: ${error.message}`); // 빨간색 로그
+        res.status(500).json({ error: '화이트리스트 조회 중 오류 발생.' });
     }
 });
 
-// 메인 라우터 설정 완료
-module.exports = router;
+// IP 차단 해제 API (POST 요청, 관리자 인증 없이 접근 가능)
+router.post('/unblock-ip', async (req, res) => {
+    const { ip } = req.body;
+    if (!ip) return res.status(400).json({ error: 'IP를 입력하세요.' });
 
-// 모든 요청 로깅 미들웨어
-router.use((req, res, next) => {
-    const logMessage = `Request Type: ${req.method}, Path: ${req.originalUrl}, IP: ${getClientIp(req)}, Time: ${new Date().toLocaleString()}`;
-    console.log('\x1b[35m%s\x1b[0m', logMessage); // 핑크색 로그
-    next();
+    try {
+        await unblockIpInDb(ip);
+        await updateUnblockedIpInHistory(ip);
+        unblockIpOnFirewall(ip); // 방화벽에서 해제
+        console.log('\x1b[36m%s\x1b[0m', `IP ${ip}가 성공적으로 차단 해제되었습니다.`); // 하늘색 로그
+        res.redirect('/list-blocked-ips');
+    } catch (error) {
+        console.error('\x1b[31m%s\x1b[0m', `IP 차단 해제 중 오류: ${error.message}`); // 빨간색 로그
+        res.status(500).json({ error: 'IP 차단 해제 중 오류 발생.' });
+    }
 });
+
+module.exports = router;
