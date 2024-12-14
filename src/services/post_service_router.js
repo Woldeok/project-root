@@ -162,18 +162,28 @@ router.get('/board/new/new', (req, res) => {
 router.get('/%EA%B0%9C%EC%9D%B8%EC%A0%95%EB%B3%B4%EC%B2%98%EB%A6%AC%EB%B0%A9%EC%B9%A8', (req, res) => {
       res.render('%EA%B0%9C%EC%9D%B8%EC%A0%95%EB%B3%B4%EC%B2%98%EB%A6%AC%EB%B0%A9%EC%B9%A8')
 });
+const pool = require('../db'); // db.js 파일에서 pool 가져오기
 router.post('/board', async (req, res) => {
   const { title, content } = req.body;
+  const user_id = req.session.user?.user_id; // 로그인된 사용자 ID 가져오기
+
+  if (!user_id) {
+    return res.status(403).send('로그인이 필요합니다.');
+  }
 
   try {
-    // 데이터베이스에 저장
-    await postsDb.createPost(req.session.user.user_id, title, content);
+    await pool.execute(
+      'INSERT INTO posts (user_id, title, content, created_at) VALUES (?, ?, ?, NOW())',
+      [user_id, title, content]
+    );
     res.redirect('/board');
   } catch (error) {
     console.error('게시물 작성 중 오류:', error);
-    res.status(500).send('게시물 작성 중 오류가 발생했습니다.');
+    res.status(500).send('게시물 작성 중 문제가 발생했습니다.');
   }
 });
+
+
 
 
 
