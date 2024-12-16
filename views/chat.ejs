@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>채팅 애플리케이션</title>
+    <script src="http://승진.shop:4000/socket.io/socket.io.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        #messages {
+            border: 1px solid #ddd;
+            padding: 10px;
+            height: 300px;
+            overflow-y: scroll;
+            margin-bottom: 10px;
+        }
+        #messages div {
+            margin-bottom: 5px;
+        }
+        .input-container {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        #messageInput {
+            flex-grow: 1;
+            padding: 10px;
+        }
+        button {
+            padding: 10px 15px;
+        }
+    </style>
+</head>
+<body>
+    <h1>채팅 애플리케이션</h1>
+    <div id="messages">
+        <% if (messages && messages.length > 0) { %>
+            <% messages.forEach(function(msg) { %>
+                <div><%= msg %></div>
+            <% }); %>
+        <% } else { %>
+            <p>저장된 메시지가 없습니다.</p>
+        <% } %>
+    </div>
+    <div class="input-container">
+        <input id="messageInput" type="text" placeholder="메시지를 입력하세요">
+        <button onclick="sendMessage()">전송</button>
+    </div>
+
+    <script>
+        // JWT 토큰 저장소에서 가져오기 (로그인 후 저장했다고 가정)
+        const token = localStorage.getItem('token'); // 또는 sessionStorage.getItem('token');
+
+        // WebSocket 연결 시 토큰 포함
+        const socket = io('http://승진.shop:4000', {
+            auth: { token } // WebSocket 연결 시 토큰 전송
+        });
+
+        // WebSocket 연결 성공/실패 처리
+        socket.on('connect', () => {
+            console.log('WebSocket 연결 성공');
+        });
+
+        socket.on('connect_error', (err) => {
+            console.error('WebSocket 연결 실패:', err.message);
+        });
+
+        // 메시지 표시 영역
+        const messagesDiv = document.getElementById('messages');
+
+        // 실시간 메시지 수신 처리
+        socket.on('chat message', (msg) => {
+            displayMessage(msg);
+        });
+
+        // 메시지 전송 처리
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+
+            if (message) {
+                // HTTP 요청에 토큰 포함
+                fetch('http://승진.shop:4000/api/messages', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}` // 토큰 추가
+                    },
+                    body: JSON.stringify({ message })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        input.value = ''; // 입력창 초기화
+                    } else {        
+                        console.error('메시지 전송 실패:', data.error);
+                    }
+                })
+                .catch(err => {
+                    console.error('HTTP 요청 실패:', err);
+                });
+            } else {
+                console.warn('메시지가 비어 있습니다.'); // 빈 메시지 경고
+            }
+        }
+
+        // 메시지를 화면에 추가하는 함수
+        function displayMessage(msg) {
+            const messageElement = document.createElement('div');
+            messageElement.textContent = msg;
+            messagesDiv.appendChild(messageElement);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight; // 스크롤 하단 이동
+        }
+    </script>
+</body>
+</html>

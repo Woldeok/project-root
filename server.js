@@ -11,7 +11,7 @@ const postRouter = require('./src/routes/post_service_router');
 const fs = require('fs');
 const winston = require('winston');
 const session = require('express-session');
-
+const axios = require('axios');
 // 로그 파일 경로 정의
 const logFilePath = path.join(__dirname, 'src/logs/app.log');
 
@@ -131,6 +131,15 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+const { createProxyMiddleware } = require('http-proxy-middleware'); // 추가
+app.use('/api/messages', createProxyMiddleware({
+  target: 'http://승진.shop:4000', // 채팅 서버 URL
+  changeOrigin: true
+}));
+
+// `/c` 경로에서 EJS 템플릿 렌더링
+const chatRouter = require('./src/routes/chat'); 
+app.use('/chat', chatRouter);
 // Middleware to log all requests centrally
 app.use((req, res, next) => {
   const ip = getClientIp(req);
