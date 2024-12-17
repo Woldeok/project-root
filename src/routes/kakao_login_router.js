@@ -8,7 +8,7 @@ const router = express.Router();
 
 const CLIENT_ID = '7591a7e295296f0796123e8b62cb8600'; // REST API 키
 const REDIRECT_URI = 'http://승진.SHOP/auth/kakao/callback'; // Redirect URI
-const SECRET_KEY = 'your_secret_key'; // JWT 비밀키
+const SECRET_KEY = process.env.SECRET_KEY;
 const STATE = 'randomstring'; // CSRF 방지를 위한 임의 값
 
 // 카카오 OAuth 인증 요청 라우트

@@ -138,8 +138,17 @@ app.use('/api/messages', createProxyMiddleware({
 }));
 
 // `/c` 경로에서 EJS 템플릿 렌더링
-const chatRouter = require('./src/routes/chat'); 
-app.use('/chat', chatRouter);
+// const chatRouter = require('./src/routes/chat'); 
+// app.use('/chat', chatRouter);
+const cors = require('cors');
+
+
+const corsOptions = {
+  origin: ['http://xn--vu4bw2k.shop'],
+  methods: ['GET', 'POST'],
+  credentials: true
+};
+
 // Middleware to log all requests centrally
 app.use((req, res, next) => {
   const ip = getClientIp(req);
@@ -287,6 +296,9 @@ app.use('/', authRouterr); // 네이버 인증 라우터
 const kakaoLoginRouter = require('./src/routes/kakao_login_router'); // 라우터 경로에 맞게 수정
 app.use('/', kakaoLoginRouter); // 네이버 인증 라우터
 // Start server
+
+
 app.listen(port, () => {
   logger.info(`Server running on http://localhost:${port}`);
 });
+

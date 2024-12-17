@@ -3,7 +3,7 @@ const router = express.Router();
 const postsDb = require('../controllers/postsDb'); // 게시물 DB 모듈
 const jwt = require('jsonwebtoken');
 const winston = require('winston');
-const SECRET_KEY = 'your_secret_key'; // 실제 비밀키로 교체하세요
+const SECRET_KEY = process.env.SECRET_KEY;
 // 관리자 또는 작성자 여부 확인 함수
 async function canDeletePost(req, postId) {
   const currentUser = req.session.user;
