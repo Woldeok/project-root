@@ -138,8 +138,8 @@ app.use('/api/messages', createProxyMiddleware({
 }));
 
 // `/c` 경로에서 EJS 템플릿 렌더링
-// const chatRouter = require('./src/routes/chat'); 
-// app.use('/chat', chatRouter);
+const chatRouter = require('./src/routes/chat'); 
+app.use('/', chatRouter);
 const cors = require('cors');
 
 

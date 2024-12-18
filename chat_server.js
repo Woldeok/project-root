@@ -1,46 +1,64 @@
-const WebSocket = require('ws'); // WebSocket 라이브러리
-const express = require('express');
+const WebSocket = require('ws');
 const http = require('http');
+const jwt = require('jsonwebtoken');
+const express = require('express');
+const chatRouter = require('./src/routes/chat'); // 채팅 REST API 라우터
 
-// Express 앱 및 HTTP 서버 설정
 const app = express();
 const server = http.createServer(app);
 
-// WebSocket 서버 생성
+// WebSocket 서버 설정
 const wss = new WebSocket.Server({ server });
+const clients = new Set(); // 연결된 클라이언트 목록
 
-// 연결된 클라이언트를 추적하는 Set
-const clients = new Set();
+// JWT 검증 함수
+function verifyToken(token) {
+    try {
+        return jwt.verify(token, 'secret-key'); // 환경 변수로 관리 권장
+    } catch (error) {
+        return null;
+    }
+}
 
-wss.on('connection', (ws) => {
-    console.log('새로운 클라이언트가 연결되었습니다.');
+// WebSocket 연결 설정
+wss.on('connection', (ws, req) => {
+    const token = req.url.split('token=')[1];
+    const user = verifyToken(token);
+
+    if (!user) {
+        ws.close();
+        return console.log('인증 실패: WebSocket 연결 종료');
+    }
+
     clients.add(ws);
+    console.log(`${user.username}이 연결되었습니다.`);
 
-    // 메시지 수신 처리
+    // 클라이언트에서 메시지 수신 시
     ws.on('message', (message) => {
-        console.log(`수신된 메시지: ${message}`);
-        // 연결된 모든 클라이언트에 메시지 브로드캐스트
+        console.log(`수신 메시지: ${message}`);
+
+        // 연결된 모든 클라이언트에게 메시지 전송
         for (const client of clients) {
-            if (client !== ws && client.readyState === WebSocket.OPEN) {
-                client.send(message);
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify({ user: user.username, message }));
             }
         }
     });
 
-    // 클라이언트 연결 종료 처리
+    // 연결 종료 시
     ws.on('close', () => {
-        console.log('클라이언트가 연결을 종료했습니다.');
         clients.delete(ws);
-    });
-
-    // 에러 처리
-    ws.on('error', (error) => {
-        console.error('WebSocket 에러:', error);
+        console.log(`${user.username} 연결 종료`);
     });
 });
 
-// HTTP 서버 포트 설정 (4000으로 변경)
-const PORT = 4000;
+// REST API 라우터 등록
+app.use(express.json());
+app.use('/api/chat', chatRouter); // REST API 라우터
+
+// 서버 시작
+const PORT = process.env.PORT || 4000;
 server.listen(PORT, () => {
-    console.log(`채팅 서버가 ${PORT} 포트에서 실행 중입니다.`);
+    console.log(`Server running on http://localhost:${PORT}`);
+    console.log('WebSocket Server is ready.');
 });
