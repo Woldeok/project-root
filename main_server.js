@@ -2,6 +2,11 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const nodemailer = require('nodemailer');
+const dotenv = require('dotenv');
+const mysql = require('mysql2/promise');
+
+// .env 파일 로드
+dotenv.config();
 
 // 로그 관리 폴더 생성
 const logDir = path.join(__dirname, 'logs');
@@ -20,6 +25,24 @@ console.log = (...args) => {
     originalConsoleLog(...args);
     mainServerLog.write(`${new Date().toISOString()} - ${args.join(' ')}\n`);
 };
+
+// 데이터베이스 연결
+let dbConnection;
+
+async function connectToDatabase() {
+    try {
+        dbConnection = await mysql.createConnection({
+            host: process.env.DB_HOST,
+            user: process.env.DB_USER,
+            password: process.env.DB_PASSWORD,
+            database: process.env.DB_NAME,
+        });
+        console.log('데이터베이스에 연결되었습니다.');
+    } catch (error) {
+        console.error('데이터베이스 연결 중 오류 발생:', error);
+        process.exit(1);
+    }
+}
 
 // 서버 실행 및 재시작 함수
 function startServer(serverName, scriptPath, logStream) {
@@ -48,16 +71,12 @@ function startServer(serverName, scriptPath, logStream) {
     restartServer();
 }
 
-// 웹 서버 및 채팅 서버 실행
-startServer('웹 서버', 'server.js', webServerLog);
-startServer('채팅 서버', 'chat_server.js', chatServerLog);
-
 // 이메일 설정
 const transporter = nodemailer.createTransport({
     service: 'Gmail',
     auth: {
-        user: 'jungchwimisaenghwal63@gmail.com',
-        pass: 'dntt yvws cwls lqrt',
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
     },
 });
 
@@ -70,8 +89,8 @@ const sendLogFiles = () => {
     ];
 
     const mailOptions = {
-        from: 'jungchwimisaenghwal63@gmail.com',
-        to: 'jungchwimisaenghwal63@gmail.com',
+        from: process.env.EMAIL_USER,
+        to: process.env.EMAIL_USER,
         subject: '서버 로그 파일',
         text: '서버 로그 파일을 첨부합니다.',
         attachments: attachments,
@@ -108,10 +127,56 @@ const scheduleLogSend = () => {
     }, delay);
 };
 
-scheduleLogSend(); // 초기 타이머 실행
+// 초기 실행
+(async () => {
+    await connectToDatabase(); // 데이터베이스 연결
+    await exportDatabaseToSQL(); // DB 내보내기
+    startServer('웹 서버', 'server.js', webServerLog);
+    startServer('채팅 서버', 'chat_server.js', chatServerLog);
+    scheduleLogSend(); // 로그 전송 타이머 시작
+    
+})();
+const exportDatabaseToSQL = async () => {
+    try {
+        console.log('데이터베이스 내보내기를 시작합니다...');
+
+        // 모든 테이블 목록 가져오기
+        const [tables] = await dbConnection.query("SHOW TABLES");
+
+        const sqlDump = [];
+        
+        for (const table of tables) {
+            const tableName = table[Object.keys(table)[0]];
+
+            // 테이블 생성 쿼리 가져오기
+            const [createTableQuery] = await dbConnection.query(`SHOW CREATE TABLE \`${tableName}\``);
+            sqlDump.push(`-- 테이블 생성: ${tableName}\n${createTableQuery[0]['Create Table']};\n\n`);
+
+            // 테이블 데이터 가져오기
+            const [rows] = await dbConnection.query(`SELECT * FROM \`${tableName}\``);
+            if (rows.length > 0) {
+                const insertStatements = rows.map(row => {
+                    const values = Object.values(row)
+                        .map(value => (value === null ? 'NULL' : `'${String(value).replace(/'/g, "\\'")}'`))
+                        .join(', ');
+                    return `INSERT INTO \`${tableName}\` VALUES (${values});`;
+                });
+                sqlDump.push(`-- ${tableName} 데이터 삽입\n${insertStatements.join('\n')}\n\n`);
+            }
+        }
+
+        // SQL 덤프 파일로 저장
+        const sqlDumpPath = path.join(logDir, 'database_dump.sql');
+        fs.writeFileSync(sqlDumpPath, sqlDump.join('\n'));
+        console.log(`데이터베이스가 SQL 파일로 내보내졌습니다: ${sqlDumpPath}`);
+    } catch (error) {
+        console.error('데이터베이스 내보내기 중 오류 발생:', error);
+    }
+};
 
 // 종료 신호 처리
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
     console.log('서버 종료 신호를 받았습니다. 모든 프로세스를 종료합니다...');
+    if (dbConnection) await dbConnection.end(); // 데이터베이스 연결 종료
     process.exit();
 });
