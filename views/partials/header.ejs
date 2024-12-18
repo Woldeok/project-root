@@ -1,88 +1,196 @@
-<header class="d-flex justify-content-between align-items-center">
-    <a href="/">
-      <img src="/img/Logo.png" alt="로고">
-    </a>
-    <nav class="nav-menu d-flex">
-      <a href="/about">사이트 소개</a>
-      <a href="/board">게시판</a>
-      <a href="/products">상품목록</a>
-      <a href="/chat">채팅</a>
-    </nav>
-    <nav class="nav-menu">
-      <% if (!isLoggedIn) { %>
-        <a href="/login" class="btn btn-outline-light btn-sm ml-2">로그인</a>
-        <a href="/signup" class="btn btn-outline-light btn-sm ml-2">회원가입</a>
-      <% } else { %>
-        <a href="/logout" class="btn btn-outline-light btn-sm ml-2">로그아웃</a>
-      <% } %>
-    </nav>
-  </header>
-  
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Header Example</title>
   <style>
     /* 공통 스타일 */
-    header {
-      background-color: #343a40;
-      padding: 15px 20px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    body {
+      margin: 0;
+      font-family: 'Arial', sans-serif;
+      background-color: #f4f4f4;
+    }
+
+    .header {
+      background: linear-gradient(90deg, #343a40, #555b62);
+      color: #ffffff;
+      padding: 20px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
       position: sticky;
       top: 0;
       z-index: 1000;
+    }
+
+    .header .container {
+      max-width: 1200px;
+      margin: 0 auto;
       display: flex;
-      flex-wrap: wrap; /* 요소들이 화면에 맞게 줄 바꿈 되도록 설정 */
       align-items: center;
       justify-content: space-between;
+      flex-wrap: wrap;
     }
-  
-    header a {
+
+    /* 로고 스타일 */
+    .header-logo img {
+      max-height: 80px;
+      transition: transform 0.3s ease, filter 0.3s ease;
+      filter: brightness(0.9);
+    }
+
+    .header-logo img:hover {
+      transform: scale(1.1);
+      filter: brightness(1);
+    }
+
+    /* 메뉴 스타일 */
+    .header-menu {
+      flex-grow: 1;
+      margin-left: 20px;
+    }
+
+    .menu-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      gap: 30px;
+      justify-content: flex-start;
+      flex-wrap: wrap;
+    }
+
+    .menu-list li {
+      display: inline-block;
+    }
+
+    .menu-list a {
       color: #ffffff;
       text-decoration: none;
-      font-size: 16px;
-      font-weight: bold;
+      font-size: 1rem;
+      font-weight: 600;
+      transition: color 0.3s ease, transform 0.3s ease;
     }
-  
-    header a:hover {
+
+    .menu-list a:hover {
       color: #17a2b8;
-      text-decoration: underline;
+      transform: translateY(-2px);
     }
-  
-    .nav-menu {
-      display: flex;
-      gap: 15px;
-      flex-wrap: wrap; /* 모바일에서 메뉴 아이템들이 줄 바꿈 되도록 설정 */
-    }
-  
-    header img {
-      max-height: 100px;
-    }
-  
-    .btn-outline-light {
-      border: 1px solid #ffffff;
-      color: #ffffff;
+
+    /* 버튼 스타일 */
+    .header-actions .btn {
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+      padding: 10px 20px;
+      border-radius: 25px;
       transition: all 0.3s ease;
     }
-  
-    .btn-outline-light:hover {
-      background-color: #ffffff;
-      color: #343a40;
+
+    .btn-primary {
+      background: linear-gradient(45deg, #007bff, #0056b3);
+      color: #ffffff;
+      border: 1px solid #0056b3;
     }
-  
-    /* 반응형 디자인을 위한 미디어 쿼리 */
+
+    .btn-primary:hover {
+      background: #0056b3;
+      border-color: #004b9b;
+      color: #ffffff;
+      transform: scale(1.05);
+    }
+
+    .btn-secondary {
+      background: linear-gradient(45deg, #6c757d, #495057);
+      color: #ffffff;
+      border: 1px solid #495057;
+    }
+
+    .btn-secondary:hover {
+      background: #495057;
+      border-color: #343a40;
+      color: #ffffff;
+      transform: scale(1.05);
+    }
+
+    .btn-danger {
+      background: linear-gradient(45deg, #e74c3c, #c0392b);
+      color: #ffffff;
+      border: 1px solid #c0392b;
+    }
+
+    .btn-danger:hover {
+      background: #c0392b;
+      border-color: #a93226;
+      color: #ffffff;
+      transform: scale(1.05);
+    }
+
+    .btn:hover {
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    }
+
+    /* 반응형 디자인 */
     @media (max-width: 768px) {
-      header {
+      .header .container {
         flex-direction: column;
         align-items: center;
       }
-  
-      .nav-menu {
+
+      .header-menu {
+        margin: 15px 0;
+      }
+
+      .menu-list {
         flex-direction: column;
         align-items: center;
-        gap: 10px;
+        gap: 15px;
+      }
+
+      .menu-list a {
+        font-size: 1.2rem;
+      }
+
+      .header-actions {
         margin-top: 10px;
       }
-  
-      .nav-menu a {
-        font-size: 18px;
+
+      .header-actions .btn {
+        padding: 12px 25px;
+        font-size: 1.1rem;
       }
     }
   </style>
-  
+</head>
+<body>
+  <header class="header">
+    <div class="container">
+      <!-- 로고 -->
+      <div class="header-logo">
+        <a href="/">
+          <img src="/img/Logo.png" alt="로고">
+        </a>
+      </div>
+
+      <!-- 메뉴 -->
+      <nav class="header-menu">
+        <ul class="menu-list">
+          <!-- <li><a href="/about">사이트 소개</a></li> -->
+          <li><a href="/board">게시판</a></li>
+          <li><a href="/products">상품목록</a></li>
+          <li><a href="/chat">채팅</a></li>
+        </ul>
+      </nav>
+
+      <!-- 액션 버튼 -->
+      <div class="header-actions">
+        <% if (!isLoggedIn) { %>
+          <a href="/login" class="btn btn-primary">로그인</a>
+          <a href="/signup" class="btn btn-secondary">회원가입</a>
+        <% } else { %>
+          <a href="/logout" class="btn btn-danger">로그아웃</a>
+        <% } %>
+      </div>
+    </div>
+  </header>
+</body>
+</html>
