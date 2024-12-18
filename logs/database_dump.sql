@@ -359,6 +359,48 @@ CREATE TABLE `purchases` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 
+-- 테이블 생성: stock_ownership
+CREATE TABLE `stock_ownership` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL,
+  `stock_symbol` varchar(10) NOT NULL,
+  `quantity` int NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `user_id` (`user_id`,`stock_symbol`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
+-- 테이블 생성: stocks
+CREATE TABLE `stocks` (
+  `stock_symbol` varchar(10) NOT NULL,
+  `price` int NOT NULL,
+  PRIMARY KEY (`stock_symbol`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
+-- stocks 데이터 삽입
+INSERT INTO `stocks` VALUES ('AAPL', '10000');
+INSERT INTO `stocks` VALUES ('AMD', '1000000');
+INSERT INTO `stocks` VALUES ('AMZN', '1000000');
+INSERT INTO `stocks` VALUES ('BABA', '1000000');
+INSERT INTO `stocks` VALUES ('CRM', '1000000');
+INSERT INTO `stocks` VALUES ('DIS', '1000000');
+INSERT INTO `stocks` VALUES ('GOOGL', '1000000');
+INSERT INTO `stocks` VALUES ('IBM', '1000000');
+INSERT INTO `stocks` VALUES ('INTC', '1000000');
+INSERT INTO `stocks` VALUES ('META', '1000000');
+INSERT INTO `stocks` VALUES ('MSFT', '1000000');
+INSERT INTO `stocks` VALUES ('NFLX', '1000000');
+INSERT INTO `stocks` VALUES ('NVDA', '1000000');
+INSERT INTO `stocks` VALUES ('ORCL', '1000000');
+INSERT INTO `stocks` VALUES ('PYPL', '1000000');
+INSERT INTO `stocks` VALUES ('QCOM', '1000000');
+INSERT INTO `stocks` VALUES ('SHOP', '1000000');
+INSERT INTO `stocks` VALUES ('SPOT', '1000000');
+INSERT INTO `stocks` VALUES ('TSLA', '1000000');
+INSERT INTO `stocks` VALUES ('ZM', '1000000');
+
+
 -- 테이블 생성: user
 CREATE TABLE `user` (
   `user_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
@@ -397,8 +439,13 @@ CREATE TABLE `users` (
   `discriminator` varchar(10) NOT NULL,
   `balance` int DEFAULT '0',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `last_claim` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
+-- users 데이터 삽입
+INSERT INTO `users` VALUES ('886478189520638000', 'weoldeog1', '0', '166702', NULL, 'Wed Dec 18 2024 19:23:08 GMT+0900 (대한민국 표준시)');
 
 
 -- 테이블 생성: whitelisted_ips

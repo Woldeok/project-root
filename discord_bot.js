@@ -54,7 +54,7 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
         await rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID), { body: commands });
         console.log(`${ORANGE}특정 서버에 슬래시 명령어가 성공적으로 등록되었습니다.${RESET}`);
     } catch (error) {
-        console.error(`${ORANGE}슬래시 명령어 등록 중 오류 발생: ${error}${RESET}`);
+        console.error(`${ORANGE}슬래시 명령어 등록 중 오류 발생: ${error.message}${RESET}`);
     }
 })();
 
@@ -79,13 +79,13 @@ client.on('interactionCreate', async interaction => {
         console.log(`${ORANGE}명령어 실행: ${interaction.commandName}${RESET}`);
         await command.execute(interaction);
     } catch (error) {
-        console.error(`${ORANGE}명령어 실행 중 오류 발생: ${interaction.commandName} - ${error}${RESET}`);
+        console.error(`${ORANGE}명령어 실행 중 오류 발생: ${interaction.commandName} - ${error.message}${RESET}`);
         await interaction.reply({ content: '명령어 실행 중 오류가 발생했습니다.', ephemeral: true });
     }
 });
 
 // 디스코드 봇 로그인
 client.login(process.env.DISCORD_TOKEN).catch(error => {
-    console.error(`${ORANGE}디스코드 봇 로그인 중 오류 발생: ${error}${RESET}`);
+    console.error(`${ORANGE}디스코드 봇 로그인 중 오류 발생: ${error.message}${RESET}`);
     process.exit(1);
 });

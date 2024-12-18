@@ -1,8 +1,10 @@
+const { SlashCommandBuilder } = require('discord.js');
 const mysql = require('mysql2/promise');
 
 module.exports = {
-    name: '가입',
-    description: 'Discord 유저 정보를 저장합니다.',
+    data: new SlashCommandBuilder()
+        .setName('가입')
+        .setDescription('Discord 유저 정보를 저장합니다.'),
     async execute(interaction) {
         const userId = interaction.user.id; // Discord 사용자 ID
         const username = interaction.user.username; // Discord 사용자 이름
@@ -24,7 +26,7 @@ module.exports = {
             const [rows] = await connection.execute('SELECT * FROM users WHERE id = ?', [userId]);
             if (rows.length > 0) {
                 await interaction.reply({
-                    content: `이미 가입되어 있습니다, ${username}#${discriminator}!`,
+                    content: `이미 가입되어 있습니다, <@${userId}>!`, // 사용자 태그
                     ephemeral: true,
                 });
                 await connection.end();
@@ -40,7 +42,7 @@ module.exports = {
 
             // 사용자에게 성공 응답
             await interaction.reply({
-                content: `환영합니다, ${username}#${discriminator}! 가입이 완료되었습니다.`,
+                content: `환영합니다, <@${userId}>! 가입이 완료되었습니다. 🎉`, // 사용자 태그
                 ephemeral: true,
             });
         } catch (error) {
@@ -52,12 +54,12 @@ module.exports = {
             // 오류 발생 시 사용자에게 알림
             if (interaction.replied || interaction.deferred) {
                 await interaction.followUp({
-                    content: '가입 처리 중 오류가 발생했습니다. 나중에 다시 시도해주세요.',
+                    content: `<@${userId}>, 가입 처리 중 오류가 발생했습니다. 나중에 다시 시도해주세요.`,
                     ephemeral: true,
                 });
             } else {
                 await interaction.reply({
-                    content: '가입 처리 중 오류가 발생했습니다. 나중에 다시 시도해주세요.',
+                    content: `<@${userId}>, 가입 처리 중 오류가 발생했습니다. 나중에 다시 시도해주세요.`,
                     ephemeral: true,
                 });
             }
