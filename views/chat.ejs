@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>채팅 페이지</title>
+</head>
+<body>
+    <h1>실시간 채팅</h1>
+    <div>
+        <% messages.forEach(msg => { %>
+            <p><strong><%= msg.user %></strong>: <%= msg.message %></p>
+        <% }) %>
+    </div>
+    <form action="/api/chat/messages" method="POST">
+        <label>사용자:</label>
+        <input type="text" name="user" placeholder="이름 입력" required>
+        <br>
+        <label>메시지:</label>
+        <input type="text" name="message" placeholder="메시지 입력" required>
+        <br>
+        <button type="submit">전송</button>
+    </form>
+</body>
+</html>

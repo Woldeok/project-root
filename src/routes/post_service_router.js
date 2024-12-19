@@ -3,7 +3,7 @@ const router = express.Router();
 const postsDb = require('../controllers/postsDb'); // 게시물 DB 모듈
 const jwt = require('jsonwebtoken');
 const winston = require('winston');
-const SECRET_KEY = 'your_secret_key'; // 실제 비밀키로 교체하세요
+const SECRET_KEY = process.env.SECRET_KEY;
 // 관리자 또는 작성자 여부 확인 함수
 async function canDeletePost(req, postId) {
   const currentUser = req.session.user;
@@ -162,19 +162,85 @@ router.get('/board/new/new', (req, res) => {
 router.get('/%EA%B0%9C%EC%9D%B8%EC%A0%95%EB%B3%B4%EC%B2%98%EB%A6%AC%EB%B0%A9%EC%B9%A8', (req, res) => {
       res.render('%EA%B0%9C%EC%9D%B8%EC%A0%95%EB%B3%B4%EC%B2%98%EB%A6%AC%EB%B0%A9%EC%B9%A8')
 });
-router.post('/board', async (req, res) => {
-  const { title, content } = req.body;
+const pool = require('../db'); // db.js 파일에서 pool 가져오기
+
+
+const path = require('path');
+const multer = require('multer');
+const fs = require('fs');
+
+// 서버 시작 시 업로드 디렉토리 확인 및 생성
+const uploadDir = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// Multer 설정 (파일 저장 경로 및 이름)
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = path.join(__dirname, '../uploads'); // 절대 경로 생성
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, `${uniqueSuffix}-${file.originalname}`);
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB 파일 크기 제한
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+    if (!allowedTypes.includes(file.mimetype)) {
+      return cb(new Error('지원하지 않는 파일 형식입니다.'));
+    }
+    cb(null, true);
+  },
+});
+
+// 게시물 작성 처리 라우터
+router.post('/board', upload.single('file'), async (req, res) => {
+  const { title, content, tags, category } = req.body;
+  const user_id = req.session.user?.user_id; // 로그인된 사용자 ID
+  const file_path = req.file ? `/uploads/${req.file.filename}` : null; // 업로드된 파일 경로
+
+  // 로그인 여부 확인
+  if (!user_id) {
+    return res.status(403).send('로그인이 필요합니다.');
+  }
+
+  // 입력값 검증
+  if (!title || !content) {
+    return res.status(400).send('제목과 내용을 모두 입력해주세요.');
+  }
 
   try {
-    // 데이터베이스에 저장
-    await postsDb.createPost(req.session.user.user_id, title, content);
+    // SQL 쿼리 실행
+    const query = `
+      INSERT INTO posts (user_id, title, content, tags, category, file_path, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, NOW())
+    `;
+    const params = [
+      user_id,
+      title.trim() || null,
+      content.trim() || null,
+      tags ? tags.trim() : null,
+      category || null,
+      file_path,
+    ];
+
+    await pool.execute(query, params);
+
+    // 성공적으로 저장 후 게시판으로 리다이렉트
     res.redirect('/board');
   } catch (error) {
     console.error('게시물 작성 중 오류:', error);
-    res.status(500).send('게시물 작성 중 오류가 발생했습니다.');
+
+    // 데이터베이스 오류 처리
+    res.status(500).send('게시물 작성 중 문제가 발생했습니다.');
   }
 });
-
 
 
 router.use((req, res, next) => {

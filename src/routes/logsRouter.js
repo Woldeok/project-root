@@ -3,7 +3,7 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const { searchLogs } = require('../controllers/logsController'); // 로그 검색 함수
-const SECRET_KEY = process.env.SECRET_KEY || 'your_secret_key';
+const SECRET_KEY = process.env.SECRET_KEY;
 const db = require('../controllers/db'); // DB 연결 (role 확인용)
 
 // 쿠키 파서 미들웨어 설정

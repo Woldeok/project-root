@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>차단된 IP 기록</title>
+    <link rel="stylesheet" href="/css/styles.css"> <!-- CSS 파일 경로 -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            width: 80%;
+            margin: 20px auto;
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f7f7f7;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        .timestamp {
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>차단된 IP 기록</h1>
+        <table>
+            <thead>
+                <tr>
+                    <th>IP 주소</th>
+                    <th>차단 해제 시간</th>
+                    <th>차단 사유</th>
+                    <th>차단 해제 기록</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% if (history.length === 0) { %>
+                    <tr>
+                        <td colspan="4" style="text-align: center;">차단 기록이 없습니다.</td>
+                    </tr>
+                <% } else { %>
+                    <% history.forEach(record => { %>
+                        <tr>
+                            <td><%= record.ip_address %></td>
+                            <td class="timestamp"><%= record.blocked_until ? new Date(record.blocked_until).toLocaleString('ko-KR') : '-' %></td>
+                            <td><%= record.reason %></td>
+                            <td class="timestamp"><%= record.unblocked_at ? new Date(record.unblocked_at).toLocaleString('ko-KR') : '-' %></td>
+                        </tr>
+                    <% }); %>
+                <% } %>
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

@@ -51,6 +51,26 @@
       margin-bottom: 30px;
     }
 
+    .post-attachment img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+    }
+
+    .post-attachment a {
+      display: block;
+      margin-top: 10px;
+      font-size: 1rem;
+      color: #007bff;
+      text-decoration: none;
+    }
+
+    .post-attachment a:hover {
+      text-decoration: underline;
+    }
+
     .button-group {
       text-align: center;
       margin-top: 20px;
@@ -169,19 +189,24 @@
     </div>
     <div class="post-content"><%= post.content %></div>
 
+    <!-- 첨부 파일 및 이미지 -->
+    <% if (post.image_path) { %>
+      <div class="post-attachment">
+        <img src="<%= post.image_path %>" alt="첨부 이미지">
+      </div>
+    <% } %>
+    <% if (post.file_path) { %>
+      <div class="post-attachment">
+        <a href="<%= post.file_path %>" download>첨부 파일 다운로드</a>
+      </div>
+    <% } %>   
+
     <!-- 버튼 그룹 -->
     <div class="button-group">
       <% if (isAuthorOrAdmin) { %>
         <form action="/board/<%= post.post_id %>/delete" method="POST">
           <button type="submit" class="btn btn-danger">삭제</button>
         </form>
-        <script>
-          console.log('권한 상태: 삭제 가능 (관리자 또는 작성자)');
-        </script>
-      <% } else { %>
-        <script>
-          console.log('권한 상태: 삭제 불가능 (권한 없음)');
-        </script>
       <% } %>
       <a href="/board" class="btn btn-primary">목록으로</a>
     </div>

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blocked IP List</title>
+    <link rel="stylesheet" href="/css/styles.css"> <!-- CSS 파일 경로 -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            width: 80%;
+            margin: 20px auto;
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f7f7f7;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        .btn {
+            padding: 10px 15px;
+            background-color: #007BFF;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .btn:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Blocked IP List</h1>
+        <table>
+            <thead>
+                <tr>
+                    <th>IP Address</th>
+                    <th>Blocked Until</th>
+                    <th>Reason</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% if (blockedIps.length === 0) { %>
+                    <tr>
+                        <td colspan="4" style="text-align: center;">No IPs are currently blocked.</td>
+                    </tr>
+                <% } else { %>
+                    <% blockedIps.forEach(ip => { %>
+                        <tr>
+                            <td><%= ip.ip_address %></td>
+                            <td><%= new Date(ip.blocked_until).toLocaleString() %></td>
+                            <td><%= ip.reason %></td>
+                            <td>
+                                <form action="/unblock-ip" method="POST" style="display:inline;">
+                                    <input type="hidden" name="ip" value="<%= ip.ip_address %>">
+                                    <button type="submit" class="btn">Unblock</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <% }); %>
+                <% } %>
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
