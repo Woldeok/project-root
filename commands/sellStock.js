@@ -10,14 +10,47 @@ module.exports = {
             option.setName('종목')
                 .setDescription('판매할 주식의 종목 코드')
                 .setRequired(true)
+                .setAutocomplete(true) // 자동완성 활성화
         )
         .addIntegerOption(option =>
             option.setName('수량')
                 .setDescription('판매할 주식의 수량')
                 .setRequired(true)
         ),
+    async autocomplete(interaction) {
+        const userId = interaction.user.id; // 사용자 ID
+
+        try {
+            // 데이터베이스 연결
+            const connection = await mysql.createConnection({
+                host: process.env.DB_HOST,
+                user: process.env.DB_USER,
+                password: process.env.DB_PASSWORD,
+                database: process.env.DB_NAME,
+            });
+
+            // 사용자가 보유한 주식 목록 가져오기
+            const [stocks] = await connection.execute(
+                'SELECT stock_symbol FROM stock_ownership WHERE user_id = ?',
+                [userId]
+            );
+            await connection.end();
+
+            // 보유 주식 목록을 자동완성 옵션으로 추가
+            const choices = stocks.map(stock => ({
+                name: stock.stock_symbol,
+                value: stock.stock_symbol,
+            }));
+
+            // 최대 25개의 선택지만 반환
+            await interaction.respond(choices.slice(0, 25));
+        } catch (error) {
+            console.error(`자동완성 처리 중 오류 발생: ${error.message}`);
+            await interaction.respond([]);
+        }
+    },
     async execute(interaction) {
-        const stockSymbol = interaction.options.getString('종목'); // 주식 종목 코드
+        const stockSymbol = interaction.options.getString('종목'); // 선택된 주식 코드
         const quantity = interaction.options.getInteger('수량'); // 판매 수량
         const userId = interaction.user.id; // 사용자 ID
 

@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { updateStockPrice } = require('../utils/stockUtils');
+const { updateStockPrice } = require('../utils/stockUpdate_s'); // 올바른 경로
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -21,18 +21,18 @@ module.exports = {
                 .setRequired(true)
         ),
     async execute(interaction) {
-        const adminId = process.env.ADMIN_ID;
+        const adminId = process.env.ADMIN_ID; // 관리자 인증
         if (interaction.user.id !== adminId) {
             await interaction.reply({ content: '이 명령어는 관리자만 사용할 수 있습니다.', ephemeral: true });
             return;
         }
 
-        const stockSymbol = interaction.options.getString('종목');
-        const priceChange = interaction.options.getInteger('변동');
-        const noticeMessage = interaction.options.getString('내용');
+        const stockSymbol = interaction.options.getString('종목'); // 입력된 종목
+        const priceChange = interaction.options.getInteger('변동'); // 가격 변동량
+        const noticeMessage = interaction.options.getString('내용'); // 공지 내용
 
         try {
-            await updateStockPrice(stockSymbol, priceChange);
+            await updateStockPrice(stockSymbol, priceChange); // 가격 업데이트 호출
 
             await interaction.reply({
                 content: `📢 시장 공지: ${noticeMessage}\n${stockSymbol}의 가격이 ${priceChange > 0 ? '상승' : '하락'}했습니다!`,

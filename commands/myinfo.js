@@ -4,7 +4,7 @@ const mysql = require('mysql2/promise');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('내정보')
-        .setDescription('현재 잔액 및 정보를 확인합니다.'),
+        .setDescription('현재 잔액 및 보유 중인 주식을 확인합니다.'),
     async execute(interaction) {
         const userId = interaction.user.id; // Discord 사용자 ID
 
@@ -18,8 +18,8 @@ module.exports = {
             });
 
             // 사용자 정보 확인
-            const [rows] = await connection.execute('SELECT * FROM users WHERE id = ?', [userId]);
-            if (rows.length === 0) {
+            const [userRows] = await connection.execute('SELECT * FROM users WHERE id = ?', [userId]);
+            if (userRows.length === 0) {
                 await interaction.reply({
                     content: `가입되지 않은 사용자입니다, <@${userId}>. 먼저 /가입 명령어를 사용하세요.`,
                     ephemeral: true,
@@ -28,12 +28,30 @@ module.exports = {
                 return;
             }
 
-            const { balance, username, discriminator } = rows[0];
+            const { balance, username, discriminator } = userRows[0];
+
+            // 보유 주식 정보 가져오기
+            const [stockRows] = await connection.execute(
+                'SELECT stock_symbol, quantity FROM stock_ownership WHERE user_id = ?',
+                [userId]
+            );
             await connection.end();
 
+            // 보유 주식 정보 포맷팅
+            let stockInfo = '보유한 주식이 없습니다.';
+            if (stockRows.length > 0) {
+                stockInfo = stockRows
+                    .map(stock => `- ${stock.stock_symbol}: ${stock.quantity}주 보유`)
+                    .join('\n');
+            }
+
             // 사용자 정보 응답
+            const response = `**${username}#${discriminator}님의 정보**\n` +
+                `- 현재 잔액: ${balance.toLocaleString('ko-KR')}원\n\n` +
+                `**보유 주식 목록:**\n${stockInfo}`;
+
             await interaction.reply({
-                content: `<@${userId}>님, 현재 잔액은 ${balance}원입니다. (유저명: ${username}#${discriminator})`,
+                content: response,
                 ephemeral: true,
             });
         } catch (error) {

@@ -2,6 +2,7 @@ const { Client, GatewayIntentBits, REST, Routes, Collection } = require('discord
 const dotenv = require('dotenv');
 const fs = require('fs');
 const path = require('path');
+const { startRealStockUpdate } = require('./utils/stockUpdate');
 
 // .env 파일 로드
 dotenv.config();
@@ -11,7 +12,7 @@ const ORANGE = '\x1b[33m';
 const RESET = '\x1b[0m';
 
 // 환경 변수 검증
-const requiredEnv = ['DISCORD_TOKEN', 'CLIENT_ID', 'GUILD_ID'];
+const requiredEnv = ['DISCORD_TOKEN', 'CLIENT_ID', 'GUILD_ID', 'DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
 const missingEnv = requiredEnv.filter(key => !process.env[key]);
 if (missingEnv.length > 0) {
     console.error(`${ORANGE}필수 환경 변수가 누락되었습니다: ${missingEnv.join(', ')}. .env 파일을 확인하세요.${RESET}`);
@@ -29,7 +30,7 @@ const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('
 
 for (const file of commandFiles) {
     const command = require(path.join(commandsPath, file));
-    if (!command.data || !command.execute) {
+    if (!command.data || (!command.execute && !command.autocomplete)) {
         console.error(`${ORANGE}명령어 파일 ${file}이 올바르지 않습니다.${RESET}`);
         continue;
     }
@@ -61,26 +62,44 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 // 봇 준비
 client.once('ready', () => {
     console.log(`${ORANGE}${client.user.tag}로 로그인되었습니다.${RESET}`);
+    console.log(`${ORANGE}실시간 주식 가격 업데이트 시작...${RESET}`);
+    startRealStockUpdate(); // 실시간 주식 업데이트 시작
 });
 
-// 명령어 처리
+// 명령어 및 자동완성 핸들러
 client.on('interactionCreate', async interaction => {
     console.log(`${ORANGE}interactionCreate 이벤트 발생: ${interaction.commandName || '알 수 없음'}${RESET}`);
-    if (!interaction.isCommand()) return;
 
-    const command = client.commands.get(interaction.commandName);
-    if (!command) {
-        console.error(`${ORANGE}명령어를 찾을 수 없습니다: ${interaction.commandName}${RESET}`);
-        await interaction.reply({ content: `명령어를 찾을 수 없습니다: ${interaction.commandName}`, ephemeral: true });
-        return;
-    }
-
-    try {
-        console.log(`${ORANGE}명령어 실행: ${interaction.commandName}${RESET}`);
-        await command.execute(interaction);
-    } catch (error) {
-        console.error(`${ORANGE}명령어 실행 중 오류 발생: ${interaction.commandName} - ${error.message}${RESET}`);
-        await interaction.reply({ content: '명령어 실행 중 오류가 발생했습니다.', ephemeral: true });
+    if (interaction.isAutocomplete()) {
+        // 자동완성 처리
+        const command = client.commands.get(interaction.commandName);
+        if (!command || !command.autocomplete) {
+            console.error(`${ORANGE}자동완성을 지원하지 않는 명령어: ${interaction.commandName}${RESET}`);
+            await interaction.respond([]);
+            return;
+        }
+        try {
+            console.log(`${ORANGE}자동완성 실행: ${interaction.commandName}${RESET}`);
+            await command.autocomplete(interaction);
+        } catch (error) {
+            console.error(`${ORANGE}자동완성 처리 중 오류 발생: ${error.message}${RESET}`);
+            await interaction.respond([]);
+        }
+    } else if (interaction.isCommand()) {
+        // 명령어 처리
+        const command = client.commands.get(interaction.commandName);
+        if (!command) {
+            console.error(`${ORANGE}명령어를 찾을 수 없습니다: ${interaction.commandName}${RESET}`);
+            await interaction.reply({ content: `명령어를 찾을 수 없습니다: ${interaction.commandName}`, ephemeral: true });
+            return;
+        }
+        try {
+            console.log(`${ORANGE}명령어 실행: ${interaction.commandName}${RESET}`);
+            await command.execute(interaction);
+        } catch (error) {
+            console.error(`${ORANGE}명령어 실행 중 오류 발생: ${interaction.commandName} - ${error.message}${RESET}`);
+            await interaction.reply({ content: '명령어 실행 중 오류가 발생했습니다.', ephemeral: true });
+        }
     }
 });
 
