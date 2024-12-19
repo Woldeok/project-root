@@ -6,7 +6,7 @@ const jwt = require('jsonwebtoken');
 const router = express.Router();
 
 const BLOCK_TIME = 3600 * 1000; // 1시간 (밀리초)
-const MAX_REQUESTS_PER_MINUTE = 100; // 1분당 최대 요청 허용 수
+const MAX_REQUESTS_PER_MINUTE = 300; // 1분당 최대 요청 허용 수
 const REQUEST_WINDOW = 60000; // 1분 (밀리초)
 const SECRET_KEY = process.env.SECRET_KEY || 'your_secret_key'; // 비밀 키
 const requestCounts = new Map(); // IP별 요청 기록

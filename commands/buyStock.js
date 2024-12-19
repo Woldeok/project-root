@@ -1,6 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
 const mysql = require('mysql2/promise');
-const { getStockPrice } = require('../utils/stockUtils'); // 정확한 경로 확인
+const { getStockPrice } = require('../utils/stockUtils'); // 주식 가격 가져오는 유틸리티 함수
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -17,10 +17,11 @@ module.exports = {
                 .setDescription('구매할 주식의 수량')
                 .setRequired(true)
         ),
+
+    // 자동완성 핸들러
     async autocomplete(interaction) {
-        console.log('자동완성 핸들러 호출됨');
+        console.log('[INFO] 자동완성 핸들러 호출됨');
         try {
-            // 데이터베이스 연결
             const connection = await mysql.createConnection({
                 host: process.env.DB_HOST,
                 user: process.env.DB_USER,
@@ -28,84 +29,89 @@ module.exports = {
                 database: process.env.DB_NAME,
             });
 
-            console.log('데이터베이스 연결 성공. 주식 목록 가져오는 중...');
-            // 모든 주식 목록 가져오기
+            console.log('[INFO] 데이터베이스 연결 성공. 주식 목록 가져오는 중...');
             const [stocks] = await connection.execute('SELECT stock_symbol FROM stocks');
             await connection.end();
 
-            console.log('주식 목록:', stocks);
-
-            // 자동완성 응답
             const choices = stocks.map(stock => ({
                 name: stock.stock_symbol,
                 value: stock.stock_symbol,
             }));
 
-            console.log('자동완성 응답:', choices);
-            // 최대 25개의 선택지만 반환
-            await interaction.respond(choices.slice(0, 25));
+            console.log('[INFO] 자동완성 응답 준비 완료:', choices);
+            await interaction.respond(choices.slice(0, 25)); // 최대 25개의 선택지만 반환
         } catch (error) {
-            console.error(`자동완성 처리 중 오류 발생: ${error.message}`);
+            console.error(`[ERROR] 자동완성 처리 중 오류 발생: ${error.message}`);
             await interaction.respond([]);
         }
     },
+
+    // 명령어 실행 핸들러
     async execute(interaction) {
-        console.log('주식 구매 명령어 실행');
+        console.log('[INFO] 주식 구매 명령어 실행');
         const stockSymbol = interaction.options.getString('종목'); // 선택된 주식 코드
         const quantity = interaction.options.getInteger('수량'); // 구매 수량
         const userId = interaction.user.id; // 사용자 ID
 
-        console.log(`사용자 입력 - 종목: ${stockSymbol}, 수량: ${quantity}`);
+        console.log(`[DEBUG] 사용자 입력 - 종목: ${stockSymbol}, 수량: ${quantity}`);
+
+        let connection;
 
         try {
-            // 주식 가격 가져오기
-            const stockPrice = await getStockPrice(stockSymbol);
-            console.log(`주식 가격 가져오기 성공 - ${stockSymbol}: ${stockPrice}`);
+            const stockPrice = await getStockPrice(stockSymbol); // 주식 가격 가져오기
+            console.log(`[INFO] 주식 가격 가져오기 성공 - ${stockSymbol}: ${stockPrice}`);
 
             const totalCost = stockPrice * quantity;
-            console.log(`총 비용 계산 완료 - ${totalCost}`);
+            console.log(`[INFO] 총 비용 계산 완료 - ${totalCost}`);
 
-            // 데이터베이스 연결
-            const connection = await mysql.createConnection({
+            connection = await mysql.createConnection({
                 host: process.env.DB_HOST,
                 user: process.env.DB_USER,
                 password: process.env.DB_PASSWORD,
                 database: process.env.DB_NAME,
             });
 
-            console.log('데이터베이스 연결 성공');
             const [userRows] = await connection.execute('SELECT balance FROM users WHERE id = ?', [userId]);
-            console.log('사용자 데이터:', userRows);
-
             if (userRows.length === 0) {
-                console.log('사용자가 가입되지 않음');
-                await interaction.reply({ content: '가입되지 않은 사용자입니다. /가입 명령어를 사용하세요.', ephemeral: true });
-                await connection.end();
+                console.log('[WARNING] 사용자 정보 없음');
+                await interaction.reply({ content: '❌ 가입되지 않은 사용자입니다. /가입 명령어를 사용하세요.', ephemeral: true });
                 return;
             }
 
             const userBalance = userRows[0].balance;
             if (userBalance < totalCost) {
-                console.log('잔액 부족');
-                await interaction.reply({ content: `잔액이 부족합니다! 현재 잔액: ${userBalance}원, 필요한 금액: ${totalCost}원`, ephemeral: true });
-                await connection.end();
+                console.log('[WARNING] 잔액 부족');
+                await interaction.reply({ content: `❌ 잔액이 부족합니다! 현재 잔액: ${userBalance.toLocaleString()}원, 필요한 금액: ${totalCost.toLocaleString()}원`, ephemeral: true });
                 return;
             }
 
-            // 구매 처리
-            console.log('구매 처리 중...');
+            console.log('[INFO] 잔액 업데이트 중...');
             await connection.execute('UPDATE users SET balance = balance - ? WHERE id = ?', [totalCost, userId]);
+
+            console.log('[INFO] 주식 보유 정보 업데이트 중...');
             await connection.execute(
-                'INSERT INTO stock_ownership (user_id, stock_symbol, quantity) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE quantity = quantity + ?',
-                [userId, stockSymbol, quantity, quantity]
+                `INSERT INTO stock_ownership (user_id, stock_symbol, quantity, purchase_price)
+                VALUES (?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE 
+                    quantity = quantity + VALUES(quantity),
+                    purchase_price = (purchase_price * quantity + VALUES(purchase_price) * VALUES(quantity)) / (quantity + VALUES(quantity))`,
+                [userId, stockSymbol, quantity, stockPrice]
             );
 
-            console.log('구매 처리 완료');
-            await connection.end();
-            await interaction.reply({ content: `✅ ${stockSymbol} 주식 ${quantity}주 구매 완료! 총 비용: ${totalCost}원`, ephemeral: true });
+            console.log(`[INFO] 주식 구매 완료: ${stockSymbol}, 수량=${quantity}, 구매가=${stockPrice}`);
+            await interaction.reply({
+                content: `✅ ${stockSymbol} 주식 ${quantity}주를 구매했습니다.\n- **총 비용:** ${totalCost.toLocaleString()}원\n- **구매가:** ${stockPrice.toLocaleString()}원`,
+                ephemeral: true,
+            });
         } catch (error) {
-            console.error(`주식 구매 처리 중 오류 발생: ${error.message}`);
-            await interaction.reply({ content: '주식 구매 처리 중 오류가 발생했습니다.', ephemeral: true });
+            console.error(`[ERROR] 주식 구매 처리 중 오류 발생: ${error.message}`);
+            await interaction.reply({ content: '❌ 주식 구매 처리 중 오류가 발생했습니다.', ephemeral: true });
+        } finally {
+            if (connection) {
+                console.log('[INFO] 데이터베이스 연결 종료 중...');
+                await connection.end();
+                console.log('[INFO] 데이터베이스 연결 종료 완료');
+            }
         }
     },
 };

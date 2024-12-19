@@ -283,16 +283,14 @@ INSERT INTO `comments` VALUES ('4905', '12', 'wxcve123', 'asdas', 'Sat Dec 14 20
 
 -- 테이블 생성: inquiry_settings
 CREATE TABLE `inquiry_settings` (
+  `id` int NOT NULL AUTO_INCREMENT,
   `guild_id` bigint NOT NULL,
   `category_id` bigint NOT NULL,
   `role_id` bigint NOT NULL,
   `content` text NOT NULL,
-  PRIMARY KEY (`guild_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
-
--- inquiry_settings 데이터 삽입
-INSERT INTO `inquiry_settings` VALUES ('1184322508556611600', '1258985015761571800', '1184331512825528300', '문의있으면 버튼을 누려주세ㅐ여\ㅛ');
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 
 -- 테이블 생성: messages
@@ -379,44 +377,45 @@ CREATE TABLE `stock_ownership` (
   `user_id` bigint NOT NULL,
   `stock_symbol` varchar(10) NOT NULL,
   `quantity` int NOT NULL,
+  `purchase_price` bigint NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `user_id` (`user_id`,`stock_symbol`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 
 -- stock_ownership 데이터 삽입
-INSERT INTO `stock_ownership` VALUES ('2', '886478189520638000', 'AAPL', '3');
+INSERT INTO `stock_ownership` VALUES ('11', '886478189520638000', 'AMD', '5', '962571');
 
 
 -- 테이블 생성: stocks
 CREATE TABLE `stocks` (
   `stock_symbol` varchar(10) NOT NULL,
-  `price` int NOT NULL,
+  `price` bigint NOT NULL,
   PRIMARY KEY (`stock_symbol`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 
 -- stocks 데이터 삽입
-INSERT INTO `stocks` VALUES ('AAPL', '248');
-INSERT INTO `stocks` VALUES ('AMD', '121');
-INSERT INTO `stocks` VALUES ('AMZN', '221');
-INSERT INTO `stocks` VALUES ('BABA', '85');
-INSERT INTO `stocks` VALUES ('CRM', '337');
-INSERT INTO `stocks` VALUES ('DIS', '111');
-INSERT INTO `stocks` VALUES ('GOOGL', '188');
-INSERT INTO `stocks` VALUES ('IBM', '220');
-INSERT INTO `stocks` VALUES ('INTC', '19');
-INSERT INTO `stocks` VALUES ('META', '597');
-INSERT INTO `stocks` VALUES ('MSFT', '437');
-INSERT INTO `stocks` VALUES ('NFLX', '890');
-INSERT INTO `stocks` VALUES ('NVDA', '129');
-INSERT INTO `stocks` VALUES ('ORCL', '165');
-INSERT INTO `stocks` VALUES ('PYPL', '85');
-INSERT INTO `stocks` VALUES ('QCOM', '153');
-INSERT INTO `stocks` VALUES ('SHOP', '110');
-INSERT INTO `stocks` VALUES ('SPOT', '449');
-INSERT INTO `stocks` VALUES ('TSLA', '440');
-INSERT INTO `stocks` VALUES ('ZM', '82');
+INSERT INTO `stocks` VALUES ('AAPL', '158501');
+INSERT INTO `stocks` VALUES ('AMD', '406383');
+INSERT INTO `stocks` VALUES ('AMZN', '512532');
+INSERT INTO `stocks` VALUES ('BABA', '10000');
+INSERT INTO `stocks` VALUES ('CRM', '10000');
+INSERT INTO `stocks` VALUES ('DIS', '227966');
+INSERT INTO `stocks` VALUES ('GOOGL', '463064');
+INSERT INTO `stocks` VALUES ('IBM', '10000');
+INSERT INTO `stocks` VALUES ('INTC', '10000');
+INSERT INTO `stocks` VALUES ('META', '10000');
+INSERT INTO `stocks` VALUES ('MSFT', '83784');
+INSERT INTO `stocks` VALUES ('NFLX', '592158');
+INSERT INTO `stocks` VALUES ('NVDA', '977802');
+INSERT INTO `stocks` VALUES ('ORCL', '10000');
+INSERT INTO `stocks` VALUES ('PYPL', '10000');
+INSERT INTO `stocks` VALUES ('QCOM', '616102');
+INSERT INTO `stocks` VALUES ('SHOP', '10000');
+INSERT INTO `stocks` VALUES ('SPOT', '10000');
+INSERT INTO `stocks` VALUES ('TSLA', '880606');
+INSERT INTO `stocks` VALUES ('ZM', '10000');
 
 
 -- 테이블 생성: user
@@ -463,7 +462,7 @@ CREATE TABLE `users` (
 
 
 -- users 데이터 삽입
-INSERT INTO `users` VALUES ('886478189520638000', 'weoldeog1', '0', '170182997', NULL, 'Thu Dec 19 2024 08:10:36 GMT+0900 (대한민국 표준시)');
+INSERT INTO `users` VALUES ('886478189520638000', 'weoldeog1', '0', '1406000181', NULL, 'Thu Dec 19 2024 12:26:02 GMT+0900 (대한민국 표준시)');
 
 
 -- 테이블 생성: whitelisted_ips

@@ -297,6 +297,8 @@ const kakaoLoginRouter = require('./src/routes/kakao_login_router'); // 라우�
 app.use('/', kakaoLoginRouter); // 네이버 인증 라우터
 // Start server
 
+// const discordRouter = require('./src/routes/discord_router');
+// app.use('/discord', discordRouter);
 
 app.listen(port, () => {
   logger.info(`Server running on http://localhost:${port}`);
