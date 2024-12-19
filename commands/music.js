@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { joinVoiceChannel, createAudioPlayer, createAudioResource } = require('@discordjs/voice');
+const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus } = require('@discordjs/voice');
 const play = require('play-dl');
 const { google } = require('googleapis');
 const youtube = google.youtube({
@@ -118,6 +118,15 @@ async function playMusic(interaction, query, serverQueue) {
       });
 
       queueContruct.connection = connection;
+
+      // 음성 채널 유휴 상태 감지하여 자동 정지
+      connection.on('stateChange', (oldState, newState) => {
+        if (newState.status === 'disconnected') {
+          console.log('음성 채널 연결이 끊어졌습니다. 음악 정지.');
+          stopMusic(interaction, serverQueue);
+        }
+      });
+
       await playSong(interaction.guild, queueContruct.songs[0]);
       interaction.reply(`🎵 **${song.title}**을(를) 재생합니다!`);
     } catch (err) {
@@ -141,15 +150,30 @@ async function playSong(guild, song) {
   }
 
   try {
-    const stream = await play.stream(song.url);
+    const stream = await play.stream(song.url, { quality: 2 });
+    console.log('스트림 생성 성공:', stream);
+
     const resource = createAudioResource(stream.stream, {
-      inputType: stream.type, // play-dl에서 제공한 스트림 타입 사용
+      inputType: stream.type, // play-dl 스트림 타입
     });
+    console.log('오디오 리소스 생성 성공');
 
     serverQueue.player.play(resource);
     serverQueue.connection.subscribe(serverQueue.player);
 
     serverQueue.textChannel.send(`🎶 현재 재생 중: **${song.title}**`);
+
+    serverQueue.player.on('stateChange', (oldState, newState) => {
+      console.log(`플레이어 상태 변경: ${oldState.status} -> ${newState.status}`);
+    });
+
+    serverQueue.player.on('error', error => {
+      console.error('플레이어 오류 발생:', error.message);
+    });
+
+    serverQueue.connection.on('stateChange', (oldState, newState) => {
+      console.log(`연결 상태 변경: ${oldState.status} -> ${newState.status}`);
+    });
   } catch (error) {
     console.error('오디오 스트리밍 중 오류 발생:', error);
     serverQueue.textChannel.send('음악을 재생할 수 없습니다.');
@@ -172,3 +196,4 @@ function stopMusic(interaction, serverQueue) {
   musicQueue.delete(interaction.guild.id);
   interaction.reply('음악 재생을 중단하고 대기열을 초기화했습니다.');
 }
+1
