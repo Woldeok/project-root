@@ -40,12 +40,21 @@ for (const file of commandFiles) {
 
 // REST API를 통해 슬래시 명령어 등록
 const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
-
 (async () => {
     try {
-        console.log(`${ORANGE}슬래시 명령어 등록 시작...${RESET}`);
-        await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: commands });
-        console.log(`${ORANGE}슬래시 명령어가 성공적으로 등록되었습니다.${RESET}`);
+        console.log(`${ORANGE}전역 슬래시 명령어 등록 시작...${RESET}`);
+        await rest.put(
+            Routes.applicationCommands(process.env.CLIENT_ID),
+            { body: commands }
+        );
+        console.log(`${ORANGE}전역 슬래시 명령어가 성공적으로 등록되었습니다.${RESET}`);
+
+        console.log(`${ORANGE}특정 서버 슬래시 명령어 등록 시작...${RESET}`);
+        await rest.put(
+            Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
+            { body: commands }
+        );
+        console.log(`${ORANGE}특정 서버 슬래시 명령어가 성공적으로 등록되었습니다.${RESET}`);
     } catch (error) {
         console.error(`${ORANGE}슬래시 명령어 등록 중 오류 발생: ${error.message}${RESET}`);
     }
@@ -55,8 +64,7 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 client.once('ready', () => {
     console.log(`${ORANGE}${client.user.tag}로 로그인되었습니다.${RESET}`);
     console.log(`${ORANGE}실시간 주식 가격 업데이트 시작...${RESET}`);
-    startRealStockUpdate(); // 실시간 주식 업데이트 시작
-    
+    startRealStockUpdate();
 });
 
 // 명령어 및 버튼 핸들러
@@ -110,6 +118,8 @@ client.on('interactionCreate', async interaction => {
         }
     }
 });
+
+// 데이터베이스에서 문의방 설정 로드 함수
 async function loadInquirySettings(guildId) {
     try {
         console.log('[INFO] 데이터베이스에서 문의방 설정 로드 중...');

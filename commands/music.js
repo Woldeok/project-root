@@ -1,46 +1,75 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { joinVoiceChannel, createAudioPlayer, createAudioResource } = require('@discordjs/voice');
 const play = require('play-dl');
+const { google } = require('googleapis');
+const youtube = google.youtube({
+  version: 'v3',
+  auth: process.env.YOUTUBE_API_KEY, // YouTube API 키 설정
+});
 const musicQueue = new Map(); // 서버별 음악 대기열 관리
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName('music')
+    .setName('음악')
     .setDescription('음악 관련 명령어')
     .addSubcommand(subcommand =>
       subcommand
-        .setName('play')
+        .setName('재생')
         .setDescription('음악을 재생합니다.')
         .addStringOption(option =>
-          option.setName('query')
+          option.setName('검색어')
             .setDescription('재생할 유튜브 URL 또는 검색어')
             .setRequired(true)
         )
     )
     .addSubcommand(subcommand =>
       subcommand
-        .setName('skip')
+        .setName('건너뛰기')
         .setDescription('현재 재생 중인 음악을 건너뜁니다.')
     )
     .addSubcommand(subcommand =>
       subcommand
-        .setName('stop')
+        .setName('정지')
         .setDescription('음악 재생을 중단하고 대기열을 초기화합니다.')
     ),
   async execute(interaction) {
     const subcommand = interaction.options.getSubcommand();
-    const query = interaction.options.getString('query');
+    const query = interaction.options.getString('검색어');
     const serverQueue = musicQueue.get(interaction.guild.id);
 
-    if (subcommand === 'play') {
+    if (subcommand === '재생') {
       await playMusic(interaction, query, serverQueue);
-    } else if (subcommand === 'skip') {
+    } else if (subcommand === '건너뛰기') {
       skipMusic(interaction, serverQueue);
-    } else if (subcommand === 'stop') {
+    } else if (subcommand === '정지') {
       stopMusic(interaction, serverQueue);
     }
   },
 };
+
+async function searchYouTube(query) {
+  try {
+    const response = await youtube.search.list({
+      part: 'snippet',
+      q: query,
+      maxResults: 1,
+      type: 'video',
+    });
+
+    if (response.data.items.length > 0) {
+      const video = response.data.items[0];
+      return {
+        title: video.snippet.title,
+        url: `https://www.youtube.com/watch?v=${video.id.videoId}`,
+      };
+    } else {
+      throw new Error('검색 결과를 찾을 수 없습니다.');
+    }
+  } catch (error) {
+    console.error('YouTube API 검색 중 오류 발생:', error.message);
+    throw error;
+  }
+}
 
 async function playMusic(interaction, query, serverQueue) {
   const voiceChannel = interaction.member.voice.channel;
@@ -62,15 +91,11 @@ async function playMusic(interaction, query, serverQueue) {
       url: songInfo.video_details.url,
     };
   } else {
-    const searchResults = await play.search(query, { limit: 1 });
-    if (searchResults.length === 0) {
-      return interaction.reply('검색 결과를 찾을 수 없습니다.');
+    try {
+      song = await searchYouTube(query);
+    } catch (error) {
+      return interaction.reply('YouTube 검색 중 오류가 발생했습니다.');
     }
-    const songInfo = searchResults[0];
-    song = {
-      title: songInfo.title,
-      url: songInfo.url,
-    };
   }
 
   if (!serverQueue) {
@@ -93,7 +118,7 @@ async function playMusic(interaction, query, serverQueue) {
       });
 
       queueContruct.connection = connection;
-      playSong(interaction.guild, queueContruct.songs[0]);
+      await playSong(interaction.guild, queueContruct.songs[0]);
       interaction.reply(`🎵 **${song.title}**을(를) 재생합니다!`);
     } catch (err) {
       console.error(err);
@@ -106,7 +131,7 @@ async function playMusic(interaction, query, serverQueue) {
   }
 }
 
-function playSong(guild, song) {
+async function playSong(guild, song) {
   const serverQueue = musicQueue.get(guild.id);
 
   if (!song) {
@@ -115,11 +140,22 @@ function playSong(guild, song) {
     return;
   }
 
-  const resource = createAudioResource(play.stream(song.url).stream);
-  serverQueue.player.play(resource);
-  serverQueue.connection.subscribe(serverQueue.player);
+  try {
+    const stream = await play.stream(song.url);
+    const resource = createAudioResource(stream.stream, {
+      inputType: stream.type, // play-dl에서 제공한 스트림 타입 사용
+    });
 
-  serverQueue.textChannel.send(`🎶 현재 재생 중: **${song.title}**`);
+    serverQueue.player.play(resource);
+    serverQueue.connection.subscribe(serverQueue.player);
+
+    serverQueue.textChannel.send(`🎶 현재 재생 중: **${song.title}**`);
+  } catch (error) {
+    console.error('오디오 스트리밍 중 오류 발생:', error);
+    serverQueue.textChannel.send('음악을 재생할 수 없습니다.');
+    serverQueue.connection.destroy();
+    musicQueue.delete(guild.id);
+  }
 }
 
 function skipMusic(interaction, serverQueue) {
