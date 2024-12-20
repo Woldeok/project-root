@@ -132,6 +132,7 @@ function startDiscordBot() {
         stdio: 'inherit', // 메인 프로세스에서 디스코드 봇 로그를 출력
     });
 }
+
 // 초기 실행
 (async () => {
     await connectToDatabase(); // 데이터베이스 연결
@@ -140,6 +141,7 @@ function startDiscordBot() {
     startServer('채팅 서버', 'chat_server.js', chatServerLog);
     startDiscordBot();
     scheduleLogSend(); // 로그 전송 타이머 시작
+   
     
 })();
 const exportDatabaseToSQL = async () => {
