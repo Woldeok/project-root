@@ -4,7 +4,8 @@ const fs = require('fs');
 const path = require('path');
 const { handleInquiryCreation, handleInquiryDeletion } = require('./handlers/buttonHandlers');
 const { startRealStockUpdate } = require('./utils/stockUpdate');
-
+const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus } = require('@discordjs/voice');
+const play = require('play-dl');
 // .env 파일 로드
 dotenv.config();
 

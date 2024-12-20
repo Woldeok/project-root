@@ -1,11 +1,14 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus } = require('@discordjs/voice');
-const play = require('play-dl');
 const { google } = require('googleapis');
+const play = require('play-dl');
+
+// YouTube API 설정
 const youtube = google.youtube({
   version: 'v3',
-  auth: process.env.YOUTUBE_API_KEY, // YouTube API 키 설정
+  auth: process.env.YOUTUBE_API_KEY, // .env 파일에서 가져온 YouTube API 키
 });
+
 const musicQueue = new Map(); // 서버별 음악 대기열 관리
 
 module.exports = {
@@ -56,15 +59,12 @@ async function searchYouTube(query) {
       type: 'video',
     });
 
-    if (response.data.items.length > 0) {
-      const video = response.data.items[0];
-      return {
-        title: video.snippet.title,
-        url: `https://www.youtube.com/watch?v=${video.id.videoId}`,
-      };
-    } else {
-      throw new Error('검색 결과를 찾을 수 없습니다.');
-    }
+    if (!response.data.items.length) throw new Error('검색 결과를 찾을 수 없습니다.');
+    const video = response.data.items[0];
+    return {
+      title: video.snippet.title,
+      url: `https://www.youtube.com/watch?v=${video.id.videoId}`,
+    };
   } catch (error) {
     console.error('YouTube API 검색 중 오류 발생:', error.message);
     throw error;
@@ -84,18 +84,19 @@ async function playMusic(interaction, query, serverQueue) {
   }
 
   let song;
-  if (play.yt_validate(query) === 'video') {
-    const songInfo = await play.video_info(query);
-    song = {
-      title: songInfo.video_details.title,
-      url: songInfo.video_details.url,
-    };
-  } else {
-    try {
+  try {
+    if (query.startsWith('https://www.youtube.com')) {
+      const songInfo = await play.video_info(query);
+      song = {
+        title: songInfo.video_details.title,
+        url: songInfo.video_details.url,
+      };
+    } else {
       song = await searchYouTube(query);
-    } catch (error) {
-      return interaction.reply('YouTube 검색 중 오류가 발생했습니다.');
     }
+  } catch (error) {
+    console.error('YouTube 검색 중 오류 발생:', error.message);
+    return interaction.reply('음악을 검색하는 중 오류가 발생했습니다.');
   }
 
   if (!serverQueue) {
@@ -119,18 +120,10 @@ async function playMusic(interaction, query, serverQueue) {
 
       queueContruct.connection = connection;
 
-      // 음성 채널 유휴 상태 감지하여 자동 정지
-      connection.on('stateChange', (oldState, newState) => {
-        if (newState.status === 'disconnected') {
-          console.log('음성 채널 연결이 끊어졌습니다. 음악 정지.');
-          stopMusic(interaction, serverQueue);
-        }
-      });
-
       await playSong(interaction.guild, queueContruct.songs[0]);
       interaction.reply(`🎵 **${song.title}**을(를) 재생합니다!`);
     } catch (err) {
-      console.error(err);
+      console.error('음성 채널 연결 중 오류 발생:', err);
       musicQueue.delete(interaction.guild.id);
       return interaction.reply('음악을 재생하는 데 실패했습니다.');
     }
@@ -144,6 +137,7 @@ async function playSong(guild, song) {
   const serverQueue = musicQueue.get(guild.id);
 
   if (!song) {
+    console.log('대기열이 비어있습니다. 연결을 종료합니다.');
     serverQueue.connection.destroy();
     musicQueue.delete(guild.id);
     return;
@@ -155,8 +149,10 @@ async function playSong(guild, song) {
 
     const resource = createAudioResource(stream.stream, {
       inputType: stream.type, // play-dl 스트림 타입
+      inlineVolume: true,     // 볼륨 활성화
     });
-    console.log('오디오 리소스 생성 성공');
+
+    resource.volume.setVolume(1.0); // 기본 볼륨 설정
 
     serverQueue.player.play(resource);
     serverQueue.connection.subscribe(serverQueue.player);
@@ -165,14 +161,16 @@ async function playSong(guild, song) {
 
     serverQueue.player.on('stateChange', (oldState, newState) => {
       console.log(`플레이어 상태 변경: ${oldState.status} -> ${newState.status}`);
+      if (newState.status === AudioPlayerStatus.Idle) {
+        console.log('현재 음악이 끝났습니다. 다음 곡으로 이동합니다.');
+        serverQueue.songs.shift();
+        playSong(guild, serverQueue.songs[0]);
+      }
     });
 
     serverQueue.player.on('error', error => {
       console.error('플레이어 오류 발생:', error.message);
-    });
-
-    serverQueue.connection.on('stateChange', (oldState, newState) => {
-      console.log(`연결 상태 변경: ${oldState.status} -> ${newState.status}`);
+      serverQueue.textChannel.send('음악 재생 중 오류가 발생했습니다.');
     });
   } catch (error) {
     console.error('오디오 스트리밍 중 오류 발생:', error);
@@ -196,4 +194,3 @@ function stopMusic(interaction, serverQueue) {
   musicQueue.delete(interaction.guild.id);
   interaction.reply('음악 재생을 중단하고 대기열을 초기화했습니다.');
 }
-1
