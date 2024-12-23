@@ -83,6 +83,7 @@ app.set('views', path.join(__dirname, 'views'));
 app.use('/', express.static(path.join(__dirname, 'ioc')));
 app.use('/', express.static(path.join(__dirname, 'robots')));
 app.use('/img', express.static(path.join(__dirname, 'img')));
+app.use('/css', express.static(path.join(__dirname, 'css')));
 
 const logInfo = (message) => {
   console.log(`\x1b[34m%s\x1b[0m`, message); // 파란색 출력
