@@ -35,7 +35,7 @@ async function updateRealStockPrices() {
                 const priceChange = Math.floor(Math.random() * 2000001) - 1000000; // -1,000,000 ~ +1,000,000
                 const newPrice = Math.max(10000, marketPrice + priceChange); // 최소 가격 10,000원 보장
 
-                console.log(`[INFO] ${stockSymbol}: 현재 가격=${currentPrice}, 변동=${priceChange}, 새로운 가격=${newPrice}`);
+                // console.log(`[INFO] ${stockSymbol}: 현재 가격=${currentPrice}, 변동=${priceChange}, 새로운 가격=${newPrice}`);
 
                 // 주식 가격 업데이트
                 await connection.execute(
@@ -59,7 +59,7 @@ async function updateRealStockPrices() {
 function startRealStockUpdate(interval = 9) {
     console.log('[INFO] 실시간 주식 가격 업데이트 스케줄러 시작...');
     setInterval(async () => {
-        console.log(`[INFO] [${new Date().toLocaleTimeString()}] 실시간 주식 가격 업데이트 실행`);
+        // console.log(`[INFO] [${new Date().toLocaleTimeString()}] 실시간 주식 가격 업데이트 실행`);
         await updateRealStockPrices();
     }, interval * 60 * 35); // interval (분) 단위로 실행
 }

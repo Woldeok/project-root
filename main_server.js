@@ -10,20 +10,36 @@ dotenv.config();
 
 // 로그 관리 폴더 생성
 const logDir = path.join(__dirname, 'logs');
-const mainLogDir = path.join(logDir, 'main_server_logs');
+const archiveDir = path.join(logDir, 'archive');
 if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
-if (!fs.existsSync(mainLogDir)) fs.mkdirSync(mainLogDir, { recursive: true });
+if (!fs.existsSync(archiveDir)) fs.mkdirSync(archiveDir, { recursive: true });
 
-// 로그 파일 설정
-const webServerLog = fs.createWriteStream(path.join(logDir, 'web_server.log'), { flags: 'a' });
-const chatServerLog = fs.createWriteStream(path.join(logDir, 'chat_server.log'), { flags: 'a' });
-const mainServerLog = fs.createWriteStream(path.join(mainLogDir, 'main_server.log'), { flags: 'a' });
+// 30분 단위로 저장될 로그 파일 이름 생성
+const getLogFilename = (prefix) => {
+    const now = new Date();
+    const timeSegment = now.getMinutes() < 30 ? '00-30' : '30-60';
+    const dateSegment = now.toISOString().split('T')[0];
+    return `${prefix}_${dateSegment}_${timeSegment}.log`;
+};
+
+// 로그 스트림 생성
+const createLogStream = (prefix) => {
+    const filename = getLogFilename(prefix);
+    const filepath = path.join(logDir, filename);
+    return fs.createWriteStream(filepath, { flags: 'a' });
+};
+
+// 로그 스트림
+let webServerLogStream = createLogStream('web_server');
+let chatServerLogStream = createLogStream('chat_server');
+let mainServerLogStream = createLogStream('main_server');
+let discordBotLogStream = createLogStream('discord_bot');
 
 // 로그 출력 설정
 const originalConsoleLog = console.log;
 console.log = (...args) => {
     originalConsoleLog(...args);
-    mainServerLog.write(`${new Date().toISOString()} - ${args.join(' ')}\n`);
+    mainServerLogStream.write(`${new Date().toISOString()} - ${args.join(' ')}\n`);
 };
 
 // 데이터베이스 연결
@@ -53,18 +69,18 @@ function startServer(serverName, scriptPath, logStream) {
         serverProcess = spawn('node', [scriptPath]);
 
         serverProcess.stdout.on('data', (data) => {
-            process.stdout.write(`${serverName}: ${data}`);
-            logStream.write(data);
+            console.log(`[${serverName}] ${data}`);
+            logStream.write(`${new Date().toISOString()} - ${data}`);
         });
 
         serverProcess.stderr.on('data', (data) => {
-            process.stderr.write(`${serverName} 오류: ${data}`);
-            logStream.write(data);
+            console.error(`[${serverName} 오류] ${data}`);
+            logStream.write(`${new Date().toISOString()} - 오류: ${data}`);
         });
 
         serverProcess.on('close', (code) => {
-            console.error(`${serverName}가 종료되었습니다. 종료 코드: ${code}. 재시작합니다...`);
-            sendEmail(`${serverName}가 종료되었습니다.`, `${serverName}가 종료되었습니다. 종료 코드: ${code}. 재시작을 시도합니다.`);
+            console.error(`[${serverName}] 프로세스가 종료되었습니다. 종료 코드: ${code}. 재시작합니다...`);
+            sendEmail(`[${serverName}] 종료 알림`, `[${serverName}] 프로세스가 종료되었습니다. 종료 코드: ${code}.`);
             restartServer();
         });
     };
@@ -81,7 +97,7 @@ const transporter = nodemailer.createTransport({
     },
 });
 
-// 로그 파일 이메일 전송 함수
+// 이메일 전송 함수
 const sendEmail = (subject, text, attachments = []) => {
     const mailOptions = {
         from: process.env.EMAIL_USER,
@@ -100,99 +116,75 @@ const sendEmail = (subject, text, attachments = []) => {
     });
 };
 
-// 로그 파일 이메일 전송 함수
-const sendLogFiles = () => {
-    const attachments = [
-        { filename: 'web_server.log', path: path.join(logDir, 'web_server.log') },
-        { filename: 'chat_server.log', path: path.join(logDir, 'chat_server.log') },
-        { filename: 'main_server.log', path: path.join(mainLogDir, 'main_server.log') },
-    ];
+// 30분 단위 로그 분할 및 이메일 전송
+const rotateAndSendLogs = () => {
+    const attachments = [];
 
-    sendEmail('서버 로그 파일', '서버 로그 파일을 첨부합니다.', attachments);
-};
+    // 기존 로그 스트림 종료
+    [webServerLogStream, chatServerLogStream, mainServerLogStream, discordBotLogStream].forEach((stream) =>
+        stream.end()
+    );
 
-// 정각과 30분마다 로그 전송
-const scheduleLogSend = () => {
-    const now = new Date();
-    const minutes = now.getMinutes();
-    const seconds = now.getSeconds();
+    // 새로운 로그 스트림 생성
+    webServerLogStream = createLogStream('web_server');
+    chatServerLogStream = createLogStream('chat_server');
+    mainServerLogStream = createLogStream('main_server');
+    discordBotLogStream = createLogStream('discord_bot');
 
-    let delay;
+    // 이전 로그 파일을 아카이브로 이동하고 이메일 첨부 파일에 추가
+    fs.readdirSync(logDir).forEach((file) => {
+        if (file.endsWith('.log') && !file.includes('archive')) {
+            const oldPath = path.join(logDir, file);
+            const newPath = path.join(archiveDir, file);
 
-    if (minutes < 30) {
-        delay = ((30 - minutes) * 60 - seconds) * 1000; // 다음 30분까지 남은 시간
-    } else {
-        delay = ((60 - minutes) * 60 - seconds) * 1000; // 다음 정각까지 남은 시간
+            fs.renameSync(oldPath, newPath);
+            attachments.push({ filename: file, path: newPath });
+        }
+    });
+
+    // 로그 파일 이메일 전송
+    if (attachments.length > 0) {
+        sendEmail('30분 단위 서버 로그 파일', '서버 로그 파일을 첨부합니다.', attachments);
     }
 
-    console.log(`다음 로그 전송 시간까지 ${Math.ceil(delay / 1000)}초 남았습니다.`);
-
-    setTimeout(() => {
-        sendLogFiles();
-        scheduleLogSend(); // 다시 타이머 설정
-    }, delay);
-};
-function startDiscordBot() {
-    console.log('디스코드 봇을 시작합니다...');
-    spawn('node', ['discord_bot.js'], {
-        stdio: 'inherit', // 메인 프로세스에서 디스코드 봇 로그를 출력
-    });
+    // 다음 30분 후에 다시 호출
+    setTimeout(rotateAndSendLogs, 30 * 60 * 1000); // 30분 후 실행
 }
 
-const exportDatabaseToSQL = async () => {
-    try {
-        console.log('데이터베이스 내보내기를 시작합니다...');
+// 디스코드 봇 실행 함수
+function startDiscordBot() {
+    let botProcess;
 
-        // 모든 테이블 목록 가져오기
-        const [tables] = await dbConnection.query("SHOW TABLES");
+    const restartBot = () => {
+        console.log('디스코드 봇을 시작합니다...');
+        botProcess = spawn('node', ['discord_bot.js']);
 
-        const sqlDump = [];
-        
-        for (const table of tables) {
-            const tableName = table[Object.keys(table)[0]];
+        botProcess.stdout.on('data', (data) => {
+            console.log(`[디스코드 봇] ${data}`);
+            discordBotLogStream.write(`${new Date().toISOString()} - ${data}`);
+        });
 
-            // 테이블 생성 쿼리 가져오기
-            const [createTableQuery] = await dbConnection.query(`SHOW CREATE TABLE \`${tableName}\``);
-            sqlDump.push(`-- 테이블 생성: ${tableName}\n${createTableQuery[0]['Create Table']};\n\n`);
+        botProcess.stderr.on('data', (data) => {
+            console.error(`[디스코드 봇 오류] ${data}`);
+            discordBotLogStream.write(`${new Date().toISOString()} - 오류: ${data}`);
+        });
 
-            // 테이블 데이터 가져오기
-            const [rows] = await dbConnection.query(`SELECT * FROM \`${tableName}\``);
-            if (rows.length > 0) {
-                const insertStatements = rows.map(row => {
-                    const values = Object.values(row)
-                        .map(value => (value === null ? 'NULL' : `'${String(value).replace(/'/g, "\\'")}'`))
-                        .join(', ');
-                    return `INSERT INTO \`${tableName}\` VALUES (${values});`;
-                });
-                sqlDump.push(`-- ${tableName} 데이터 삽입\n${insertStatements.join('\n')}\n\n`);
-            }
-        }
+        botProcess.on('close', (code) => {
+            console.error(`[디스코드 봇] 프로세스가 종료되었습니다. 종료 코드: ${code}. 재시작합니다...`);
+            sendEmail('디스코드 봇 종료 알림', `디스코드 봇이 종료되었습니다. 종료 코드: ${code}.`);
+            restartBot();
+        });
+    };
 
-        // SQL 덤프 파일로 저장
-        const sqlDumpPath = path.join(logDir, 'database_dump.sql');
-        fs.writeFileSync(sqlDumpPath, sqlDump.join('\n'));
-        console.log(`데이터베이스가 SQL 파일로 내보내졌습니다: ${sqlDumpPath}`);
-    } catch (error) {
-        console.error('데이터베이스 내보내기 중 오류 발생:', error);
-    }
-};
-
-// 종료 신호 처리
-process.on('SIGINT', async () => {
-    console.log('서버 종료 신호를 받았습니다. 모든 프로세스를 종료합니다...');
-    sendLogFiles();
-    sendEmail('서버 종료 알림', '서버가 종료되었습니다. 재시작을 시도합니다.');
-    if (dbConnection) await dbConnection.end(); // 데이터베이스 연결 종료
-    process.exit();
-});
+    restartBot();
+}
 
 // 초기 실행
 (async () => {
     await connectToDatabase(); // 데이터베이스 연결
-    await exportDatabaseToSQL(); // DB 내보내기
-    startServer('웹 서버', 'server.js', webServerLog);
-    startServer('채팅 서버', 'chat_server.js', chatServerLog);
-    startDiscordBot();
-    scheduleLogSend(); // 로그 전송 타이머 시작
+    startServer('웹 서버', 'server.js', webServerLogStream);
+    startServer('채팅 서버', 'chat_server.js', chatServerLogStream);
+    startDiscordBot(); // 디스코드 봇 실행
+    rotateAndSendLogs(); // 로그 분할 및 이메일 전송 스케줄 시작
     sendEmail('서버 시작 알림', '서버가 성공적으로 시작되었습니다.');
 })();

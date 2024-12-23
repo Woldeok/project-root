@@ -3,6 +3,7 @@ const dotenv = require('dotenv');
 const fs = require('fs');
 const path = require('path');
 const mysql = require('mysql2/promise');
+const { updateRealStockPrices, startRealStockUpdate } = require('./utils/stockUpdate'); // 주식 업데이트 모듈
 
 dotenv.config();
 
@@ -61,6 +62,7 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
     }
 })();
 
+// 데이터베이스 연결
 let dbConnection;
 (async () => {
     try {
@@ -74,11 +76,20 @@ let dbConnection;
         console.log(`${ORANGE}데이터베이스 연결 성공!${RESET}`);
     } catch (error) {
         console.error(`${ORANGE}데이터베이스 연결 중 오류 발생: ${error.message}${RESET}`);
+        process.exit(1);
     }
 })();
 
 client.on('ready', () => {
     console.log(`${ORANGE}${client.user.tag}로 로그인되었습니다.${RESET}`);
+
+    // 주식 업데이트 주기 설정
+    try {
+        startRealStockUpdate(); // 1분마다 주식 데이터 업데이트
+        console.log(`${ORANGE}실시간 주식 업데이트가 시작되었습니다.${RESET}`);
+    } catch (error) {
+        console.error(`${ORANGE}실시간 주식 업데이트 시작 중 오류 발생: ${error.message}${RESET}`);
+    }
 });
 
 client.on('interactionCreate', async interaction => {
