@@ -22,7 +22,7 @@ module.exports = {
             if (stocks.length === 0) {
                 await interaction.reply({
                     content: '현재 등록된 주식이 없습니다.',
-                    ephemeral: true,
+                    ephemeral: false,
                 });
                 return;
             }

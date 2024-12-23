@@ -25,7 +25,7 @@ module.exports = {
             if (userRows.length === 0) {
                 await interaction.reply({
                     content: `❌ 가입되지 않은 사용자입니다. /가입 명령어를 사용해 먼저 가입하세요.`,
-                    ephemeral: true,
+                    ephemeral: false,
                 });
                 return;
             }
@@ -63,13 +63,13 @@ module.exports = {
             console.log('[INFO] 사용자 정보 응답 전송 중...');
             await interaction.reply({
                 content: `💰 **현재 잔액:** ${userBalance.toLocaleString()}원\n\n📊 **보유 주식 정보:**\n${stockInfo}`,
-                ephemeral: true,
+                ephemeral: false,
             });
         } catch (error) {
             console.error(`[ERROR] 내정보 처리 중 오류 발생: ${error.message}`);
             await interaction.reply({
                 content: '❌ 정보를 조회하는 중 오류가 발생했습니다. 나중에 다시 시도해주세요.',
-                ephemeral: true,
+                ephemeral: false,
             });
         } finally {
             if (connection) {

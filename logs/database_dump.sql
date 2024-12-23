@@ -19,7 +19,7 @@ CREATE TABLE `blocked_ip_history` (
   `unblocked_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `id` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=241 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=242 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 
 -- blocked_ip_history 데이터 삽입
@@ -241,6 +241,8 @@ INSERT INTO `blocked_ip_history` VALUES ('237', '78.153.140.222', 'Wed Dec 18 20
 INSERT INTO `blocked_ip_history` VALUES ('238', '59.8.0.188', 'Wed Dec 18 2024 12:05:41 GMT+0900 (대한민국 표준시)', '과도한 요청', 'Wed Dec 18 2024 11:05:40 GMT+0900 (대한민국 표준시)', 'Wed Dec 18 2024 11:06:29 GMT+0900 (대한민국 표준시)');
 INSERT INTO `blocked_ip_history` VALUES ('239', '59.8.0.188', 'Wed Dec 18 2024 12:06:37 GMT+0900 (대한민국 표준시)', '과도한 요청', 'Wed Dec 18 2024 11:06:36 GMT+0900 (대한민국 표준시)', 'Wed Dec 18 2024 11:13:12 GMT+0900 (대한민국 표준시)');
 INSERT INTO `blocked_ip_history` VALUES ('240', '101.66.172.251', 'Wed Dec 18 2024 16:43:55 GMT+0900 (대한민국 표준시)', '과도한 요청', 'Wed Dec 18 2024 15:43:55 GMT+0900 (대한민국 표준시)', NULL);
+INSERT INTO `blocked_ip_history` VALUES ('241', '63.141.246.226', 'Sun Dec 22 2024 19:03:59 GMT+0900 (대한민국 표준시)', '차단
+', 'Sun Dec 22 2024 18:03:58 GMT+0900 (대한민국 표준시)', NULL);
 
 
 -- 테이블 생성: blocked_ips
@@ -252,12 +254,14 @@ CREATE TABLE `blocked_ips` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `id` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=242 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=243 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 
 -- blocked_ips 데이터 삽입
 INSERT INTO `blocked_ips` VALUES ('238', '78.153.140.222', 'Wed Dec 18 2024 08:02:45 GMT+0900 (대한민국 표준시)', '과도한 요청', 'Wed Dec 18 2024 07:02:45 GMT+0900 (대한민국 표준시)');
 INSERT INTO `blocked_ips` VALUES ('241', '101.66.172.251', 'Wed Dec 18 2024 16:43:55 GMT+0900 (대한민국 표준시)', '과도한 요청', 'Wed Dec 18 2024 15:43:55 GMT+0900 (대한민국 표준시)');
+INSERT INTO `blocked_ips` VALUES ('242', '63.141.246.226', 'Sun Dec 22 2024 19:03:59 GMT+0900 (대한민국 표준시)', '차단
+', 'Sun Dec 22 2024 18:03:58 GMT+0900 (대한민국 표준시)');
 
 
 -- 테이블 생성: comments
@@ -380,11 +384,13 @@ CREATE TABLE `stock_ownership` (
   `purchase_price` bigint NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `user_id` (`user_id`,`stock_symbol`)
-) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 
 -- stock_ownership 데이터 삽입
 INSERT INTO `stock_ownership` VALUES ('11', '886478189520638000', 'AMD', '5', '962571');
+INSERT INTO `stock_ownership` VALUES ('17', '886478189520638000', 'TSLA', '201', '10000');
+INSERT INTO `stock_ownership` VALUES ('19', '886478189520638000', 'GOOGL', '1', '913474');
 
 
 -- 테이블 생성: stocks
@@ -396,26 +402,26 @@ CREATE TABLE `stocks` (
 
 
 -- stocks 데이터 삽입
-INSERT INTO `stocks` VALUES ('AAPL', '323069');
-INSERT INTO `stocks` VALUES ('AMD', '513526');
-INSERT INTO `stocks` VALUES ('AMZN', '383957');
+INSERT INTO `stocks` VALUES ('AAPL', '480470');
+INSERT INTO `stocks` VALUES ('AMD', '10000');
+INSERT INTO `stocks` VALUES ('AMZN', '18217');
 INSERT INTO `stocks` VALUES ('BABA', '10000');
-INSERT INTO `stocks` VALUES ('CRM', '10000');
-INSERT INTO `stocks` VALUES ('DIS', '10000');
-INSERT INTO `stocks` VALUES ('GOOGL', '55454');
-INSERT INTO `stocks` VALUES ('IBM', '10000');
-INSERT INTO `stocks` VALUES ('INTC', '10000');
+INSERT INTO `stocks` VALUES ('CRM', '90827');
+INSERT INTO `stocks` VALUES ('DIS', '281511');
+INSERT INTO `stocks` VALUES ('GOOGL', '913474');
+INSERT INTO `stocks` VALUES ('IBM', '817412');
+INSERT INTO `stocks` VALUES ('INTC', '969722');
 INSERT INTO `stocks` VALUES ('META', '10000');
-INSERT INTO `stocks` VALUES ('MSFT', '10000');
+INSERT INTO `stocks` VALUES ('MSFT', '84803');
 INSERT INTO `stocks` VALUES ('NFLX', '10000');
-INSERT INTO `stocks` VALUES ('NVDA', '10000');
-INSERT INTO `stocks` VALUES ('ORCL', '375542');
-INSERT INTO `stocks` VALUES ('PYPL', '262754');
-INSERT INTO `stocks` VALUES ('QCOM', '26202');
-INSERT INTO `stocks` VALUES ('SHOP', '10000');
-INSERT INTO `stocks` VALUES ('SPOT', '722674');
-INSERT INTO `stocks` VALUES ('TSLA', '201020');
-INSERT INTO `stocks` VALUES ('ZM', '10000');
+INSERT INTO `stocks` VALUES ('NVDA', '233149');
+INSERT INTO `stocks` VALUES ('ORCL', '10000');
+INSERT INTO `stocks` VALUES ('PYPL', '580338');
+INSERT INTO `stocks` VALUES ('QCOM', '10000');
+INSERT INTO `stocks` VALUES ('SHOP', '67002');
+INSERT INTO `stocks` VALUES ('SPOT', '10000');
+INSERT INTO `stocks` VALUES ('TSLA', '10000');
+INSERT INTO `stocks` VALUES ('ZM', '979344');
 
 
 -- 테이블 생성: user
@@ -462,7 +468,7 @@ CREATE TABLE `users` (
 
 
 -- users 데이터 삽입
-INSERT INTO `users` VALUES ('886478189520638000', 'weoldeog1', '0', '1406000181', NULL, 'Thu Dec 19 2024 12:26:02 GMT+0900 (대한민국 표준시)');
+INSERT INTO `users` VALUES ('886478189520638000', 'weoldeog1', '0', '1403077707', NULL, 'Thu Dec 19 2024 12:26:02 GMT+0900 (대한민국 표준시)');
 
 
 -- 테이블 생성: whitelisted_ips

@@ -6,7 +6,7 @@ const jwt = require('jsonwebtoken');
 const router = express.Router();
 
 const BLOCK_TIME = 3600 * 1000; // 1시간 (밀리초)
-const MAX_REQUESTS_PER_MINUTE = 300; // 1분당 최대 요청 허용 수
+const MAX_REQUESTS_PER_MINUTE = 110; // 1분당 최대 요청 허용 수
 const REQUEST_WINDOW = 60000; // 1분 (밀리초)
 const SECRET_KEY = process.env.SECRET_KEY || 'your_secret_key'; // 비밀 키
 const requestCounts = new Map(); // IP별 요청 기록
@@ -123,6 +123,19 @@ const unblockIpInDb = async (ip) => {
     await db.query(query, [ip]);
     console.log('\x1b[36m%s\x1b[0m', `IP ${ip}의 차단이 DB에서 해제되었습니다.`); // 하늘색 로그
 };
+
+// 특정 확장자 접근 차단 미들웨어 추가
+router.use((req, res, next) => {
+    const forbiddenExtensions = ['.php', '.js'];
+    const requestPath = req.path.toLowerCase();
+
+    if (forbiddenExtensions.some((ext) => requestPath.endsWith(ext))) {
+        console.log('\x1b[31m%s\x1b[0m', `차단된 확장자 요청: ${requestPath}`); // 빨간색 로그
+        return res.status(403).send('접근이 차단되었습니다.');
+    }
+
+    next();
+});
 
 // IP 요청 필터링 미들웨어
 router.use(async (req, res, next) => {

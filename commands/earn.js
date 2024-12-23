@@ -30,7 +30,7 @@ module.exports = {
             if (rows.length === 0) {
                 await interaction.reply({
                     content: `가입되지 않은 사용자입니다, <@${userId}>. 먼저 /가입 명령어를 사용하세요.`,
-                    ephemeral: true,
+                    ephemeral: false,
                 });
                 await connection.end();
                 return;
@@ -47,7 +47,7 @@ module.exports = {
                 if (diffMinutes < cooldownMinutes) {
                     await interaction.reply({
                         content: `<@${userId}>님, 돈받기를 다시 사용하려면 ${cooldownMinutes - diffMinutes}분 더 기다려야 합니다.`,
-                        ephemeral: true,
+                        ephemeral: false,
                     });
                     await connection.end();
                     return;
@@ -64,7 +64,7 @@ module.exports = {
             // 사용자에게 성공 응답
             await interaction.reply({
                 content: `<@${userId}>님, 축하합니다! ${earnedAmount}원을 획득하셨습니다. 🎉`,
-                ephemeral: true,
+                ephemeral: false,
             });
         } catch (error) {
             console.error(`돈받기 처리 중 오류 발생:
@@ -76,12 +76,12 @@ module.exports = {
             if (interaction.replied || interaction.deferred) {
                 await interaction.followUp({
                     content: `<@${userId}>, 처리 중 오류가 발생했습니다. 나중에 다시 시도해주세요.`,
-                    ephemeral: true,
+                    ephemeral: false,
                 });
             } else {
                 await interaction.reply({
                     content: `<@${userId}>, 처리 중 오류가 발생했습니다. 나중에 다시 시도해주세요.`,
-                    ephemeral: true,
+                    ephemeral: false,
                 });
             }
         }

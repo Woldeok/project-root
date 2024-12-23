@@ -76,7 +76,7 @@ module.exports = {
             if (stockRows.length === 0 || stockRows[0].quantity < quantity) {
                 await interaction.reply({
                     content: `보유한 ${stockSymbol} 주식 수량이 부족합니다. 현재 보유 수량: ${stockRows[0]?.quantity || 0}주`,
-                    ephemeral: true,
+                    ephemeral: false,
                 });
                 await connection.end();
                 return;
@@ -110,13 +110,13 @@ module.exports = {
             // 성공 응답
             await interaction.reply({
                 content: `✅ ${stockSymbol} 주식 ${quantity}주를 판매하셨습니다. 총 판매 금액: ${totalValue.toFixed(2)}원`,
-                ephemeral: true,
+                ephemeral: false,
             });
         } catch (error) {
             console.error(`주식 판매 처리 중 오류 발생: ${error.message}`);
             await interaction.reply({
                 content: '주식 판매 처리 중 오류가 발생했습니다. 다시 시도해주세요.',
-                ephemeral: true,
+                ephemeral: false,
             });
         }
     },

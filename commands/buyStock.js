@@ -74,14 +74,14 @@ module.exports = {
             const [userRows] = await connection.execute('SELECT balance FROM users WHERE id = ?', [userId]);
             if (userRows.length === 0) {
                 console.log('[WARNING] 사용자 정보 없음');
-                await interaction.reply({ content: '❌ 가입되지 않은 사용자입니다. /가입 명령어를 사용하세요.', ephemeral: true });
+                await interaction.reply({ content: '❌ 가입되지 않은 사용자입니다. /가입 명령어를 사용하세요.', ephemeral: false });
                 return;
             }
 
             const userBalance = userRows[0].balance;
             if (userBalance < totalCost) {
                 console.log('[WARNING] 잔액 부족');
-                await interaction.reply({ content: `❌ 잔액이 부족합니다! 현재 잔액: ${userBalance.toLocaleString()}원, 필요한 금액: ${totalCost.toLocaleString()}원`, ephemeral: true });
+                await interaction.reply({ content: `❌ 잔액이 부족합니다! 현재 잔액: ${userBalance.toLocaleString()}원, 필요한 금액: ${totalCost.toLocaleString()}원`, ephemeral: false });
                 return;
             }
 
@@ -101,11 +101,11 @@ module.exports = {
             console.log(`[INFO] 주식 구매 완료: ${stockSymbol}, 수량=${quantity}, 구매가=${stockPrice}`);
             await interaction.reply({
                 content: `✅ ${stockSymbol} 주식 ${quantity}주를 구매했습니다.\n- **총 비용:** ${totalCost.toLocaleString()}원\n- **구매가:** ${stockPrice.toLocaleString()}원`,
-                ephemeral: true,
+                ephemeral: false,
             });
         } catch (error) {
             console.error(`[ERROR] 주식 구매 처리 중 오류 발생: ${error.message}`);
-            await interaction.reply({ content: '❌ 주식 구매 처리 중 오류가 발생했습니다.', ephemeral: true });
+            await interaction.reply({ content: '❌ 주식 구매 처리 중 오류가 발생했습니다.', ephemeral: false });
         } finally {
             if (connection) {
                 console.log('[INFO] 데이터베이스 연결 종료 중...');

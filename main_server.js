@@ -64,6 +64,7 @@ function startServer(serverName, scriptPath, logStream) {
 
         serverProcess.on('close', (code) => {
             console.error(`${serverName}가 종료되었습니다. 종료 코드: ${code}. 재시작합니다...`);
+            sendEmail(`${serverName}가 종료되었습니다.`, `${serverName}가 종료되었습니다. 종료 코드: ${code}. 재시작을 시도합니다.`);
             restartServer();
         });
     };
@@ -81,18 +82,12 @@ const transporter = nodemailer.createTransport({
 });
 
 // 로그 파일 이메일 전송 함수
-const sendLogFiles = () => {
-    const attachments = [
-        { filename: 'web_server.log', path: path.join(logDir, 'web_server.log') },
-        { filename: 'chat_server.log', path: path.join(logDir, 'chat_server.log') },
-        { filename: 'main_server.log', path: path.join(mainLogDir, 'main_server.log') },
-    ];
-
+const sendEmail = (subject, text, attachments = []) => {
     const mailOptions = {
         from: process.env.EMAIL_USER,
         to: process.env.EMAIL_USER,
-        subject: '서버 로그 파일',
-        text: '서버 로그 파일을 첨부합니다.',
+        subject: subject,
+        text: text,
         attachments: attachments,
     };
 
@@ -103,6 +98,17 @@ const sendLogFiles = () => {
             console.log(`이메일이 전송되었습니다: ${info.response}`);
         }
     });
+};
+
+// 로그 파일 이메일 전송 함수
+const sendLogFiles = () => {
+    const attachments = [
+        { filename: 'web_server.log', path: path.join(logDir, 'web_server.log') },
+        { filename: 'chat_server.log', path: path.join(logDir, 'chat_server.log') },
+        { filename: 'main_server.log', path: path.join(mainLogDir, 'main_server.log') },
+    ];
+
+    sendEmail('서버 로그 파일', '서버 로그 파일을 첨부합니다.', attachments);
 };
 
 // 정각과 30분마다 로그 전송
@@ -133,17 +139,6 @@ function startDiscordBot() {
     });
 }
 
-// 초기 실행
-(async () => {
-    await connectToDatabase(); // 데이터베이스 연결
-      await exportDatabaseToSQL(); // DB 내보내기
-    startServer('웹 서버', 'server.js', webServerLog);
-    startServer('채팅 서버', 'chat_server.js', chatServerLog);
-    startDiscordBot();
-    scheduleLogSend(); // 로그 전송 타이머 시작
-   
-    
-})();
 const exportDatabaseToSQL = async () => {
     try {
         console.log('데이터베이스 내보내기를 시작합니다...');
@@ -185,6 +180,19 @@ const exportDatabaseToSQL = async () => {
 // 종료 신호 처리
 process.on('SIGINT', async () => {
     console.log('서버 종료 신호를 받았습니다. 모든 프로세스를 종료합니다...');
+    sendLogFiles();
+    sendEmail('서버 종료 알림', '서버가 종료되었습니다. 재시작을 시도합니다.');
     if (dbConnection) await dbConnection.end(); // 데이터베이스 연결 종료
     process.exit();
 });
+
+// 초기 실행
+(async () => {
+    await connectToDatabase(); // 데이터베이스 연결
+    await exportDatabaseToSQL(); // DB 내보내기
+    startServer('웹 서버', 'server.js', webServerLog);
+    startServer('채팅 서버', 'chat_server.js', chatServerLog);
+    startDiscordBot();
+    scheduleLogSend(); // 로그 전송 타이머 시작
+    sendEmail('서버 시작 알림', '서버가 성공적으로 시작되었습니다.');
+})();
