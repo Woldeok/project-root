@@ -4,9 +4,16 @@ const path = require('path');
 const nodemailer = require('nodemailer');
 const dotenv = require('dotenv');
 const mysql = require('mysql2/promise');
+const axios = require('axios');
 
 // .env 파일 로드
 dotenv.config();
+
+// 환경 변수 유효성 검증
+if (!process.env.DISCORD_WEBHOOK_URL_INFO || !process.env.DISCORD_WEBHOOK_URL_ERROR) {
+    console.error('필수 DISCORD_WEBHOOK_URL이 .env 파일에 설정되지 않았습니다.');
+    process.exit(1);
+}
 
 // 로그 관리 폴더 생성
 const logDir = path.join(__dirname, 'logs');
@@ -37,9 +44,32 @@ let discordBotLogStream = createLogStream('discord_bot');
 
 // 로그 출력 설정
 const originalConsoleLog = console.log;
-console.log = (...args) => {
-    originalConsoleLog(...args);
-    mainServerLogStream.write(`${new Date().toISOString()} - ${args.join(' ')}\n`);
+const discordLogQueues = {
+    info: [],
+    error: [],
+};
+
+// 로그에 서버 이름 포함 및 조건 처리
+console.log = (serverName, ...args) => {
+    const logMessage = `${new Date().toISOString()} - [${serverName}] ${args.join(' ')}`;
+    originalConsoleLog(logMessage); // 콘솔 출력
+    mainServerLogStream.write(`${logMessage}\n`); // 메인 서버 로그 파일 기록
+
+    // 메인 서버 로그 조건 처리
+    if (serverName === '메인 서버' && args.join(' ').includes('디스코드로 로그가 전송되었습니다')) {
+        discordLogQueues.info.push(logMessage); // "디스코드로 로그가 전송되었습니다" 메시지만 전송
+    } else if (serverName !== '메인 서버') {
+        discordLogQueues.info.push(logMessage); // 나머지 서버 로그는 모두 전송
+    }
+};
+
+console.error = (serverName, ...args) => {
+    const logMessage = `${new Date().toISOString()} - [${serverName}] ${args.join(' ')}`;
+    originalConsoleLog(logMessage); // 콘솔 출력
+    mainServerLogStream.write(`${logMessage}\n`); // 메인 서버 로그 파일 기록
+
+    // 에러 로그는 모든 서버에서 전송
+    discordLogQueues.error.push(logMessage);
 };
 
 // 데이터베이스 연결
@@ -52,10 +82,11 @@ async function connectToDatabase() {
             user: process.env.DB_USER,
             password: process.env.DB_PASSWORD,
             database: process.env.DB_NAME,
+            port: process.env.DB_PORT || 3306,
         });
-        console.log('데이터베이스에 연결되었습니다.');
+        console.log('메인 서버', '데이터베이스에 연결되었습니다.');
     } catch (error) {
-        console.error('데이터베이스 연결 중 오류 발생:', error);
+        console.error('메인 서버', '데이터베이스 연결 중 오류 발생:', error);
         process.exit(1);
     }
 }
@@ -65,22 +96,28 @@ function startServer(serverName, scriptPath, logStream) {
     let serverProcess;
 
     const restartServer = () => {
-        console.log(`${serverName}를 시작합니다...`);
+        console.log(serverName, `${serverName}를 시작합니다...`);
         serverProcess = spawn('node', [scriptPath]);
 
         serverProcess.stdout.on('data', (data) => {
-            console.log(`[${serverName}] ${data}`);
-            logStream.write(`${new Date().toISOString()} - ${data}`);
+            const logMessage = `[${serverName}] ${data.toString().trim()}`;
+            originalConsoleLog(logMessage); // 콘솔 출력
+            logStream.write(`${new Date().toISOString()} - ${logMessage}\n`);
+            discordLogQueues.info.push(logMessage);
         });
 
         serverProcess.stderr.on('data', (data) => {
-            console.error(`[${serverName} 오류] ${data}`);
-            logStream.write(`${new Date().toISOString()} - 오류: ${data}`);
+            const errorMessage = `[${serverName} 오류] ${data.toString().trim()}`;
+            originalConsoleLog(errorMessage); // 콘솔 출력
+            logStream.write(`${new Date().toISOString()} - 오류: ${errorMessage}\n`);
+            discordLogQueues.error.push(errorMessage);
         });
 
         serverProcess.on('close', (code) => {
-            console.error(`[${serverName}] 프로세스가 종료되었습니다. 종료 코드: ${code}. 재시작합니다...`);
-            sendEmail(`[${serverName}] 종료 알림`, `[${serverName}] 프로세스가 종료되었습니다. 종료 코드: ${code}.`);
+            const closeMessage = `[${serverName}] 프로세스가 종료되었습니다. 종료 코드: ${code}. 재시작합니다...`;
+            originalConsoleLog(closeMessage); // 콘솔 출력
+            logStream.write(`${new Date().toISOString()} - ${closeMessage}\n`);
+            discordLogQueues.error.push(closeMessage);
             restartServer();
         });
     };
@@ -88,90 +125,33 @@ function startServer(serverName, scriptPath, logStream) {
     restartServer();
 }
 
-// 이메일 설정
-const transporter = nodemailer.createTransport({
-    service: 'Gmail',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-    },
-});
-
-// 이메일 전송 함수
-const sendEmail = (subject, text, attachments = []) => {
-    const mailOptions = {
-        from: process.env.EMAIL_USER,
-        to: process.env.EMAIL_USER,
-        subject: subject,
-        text: text,
-        attachments: attachments,
-    };
-
-    transporter.sendMail(mailOptions, (error, info) => {
-        if (error) {
-            console.error('이메일 전송 중 오류 발생:', error);
-        } else {
-            console.log(`이메일이 전송되었습니다: ${info.response}`);
-        }
-    });
-};
-
-// 30분 단위 로그 분할 및 이메일 전송
-const rotateAndSendLogs = () => {
-    const attachments = [];
-
-    // 기존 로그 스트림 종료
-    [webServerLogStream, chatServerLogStream, mainServerLogStream, discordBotLogStream].forEach((stream) =>
-        stream.end()
-    );
-
-    // 새로운 로그 스트림 생성
-    webServerLogStream = createLogStream('web_server');
-    chatServerLogStream = createLogStream('chat_server');
-    mainServerLogStream = createLogStream('main_server');
-    discordBotLogStream = createLogStream('discord_bot');
-
-    // 이전 로그 파일을 아카이브로 이동하고 이메일 첨부 파일에 추가
-    fs.readdirSync(logDir).forEach((file) => {
-        if (file.endsWith('.log') && !file.includes('archive')) {
-            const oldPath = path.join(logDir, file);
-            const newPath = path.join(archiveDir, file);
-
-            fs.renameSync(oldPath, newPath);
-            attachments.push({ filename: file, path: newPath });
-        }
-    });
-
-    // 로그 파일 이메일 전송
-    if (attachments.length > 0) {
-        sendEmail('30분 단위 서버 로그 파일', '서버 로그 파일을 첨부합니다.', attachments);
-    }
-
-    // 다음 30분 후에 다시 호출
-    setTimeout(rotateAndSendLogs, 30 * 60 * 1000); // 30분 후 실행
-}
-
 // 디스코드 봇 실행 함수
 function startDiscordBot() {
     let botProcess;
 
     const restartBot = () => {
-        console.log('디스코드 봇을 시작합니다...');
+        console.log('디스코드 봇', '디스코드 봇을 시작합니다...');
         botProcess = spawn('node', ['discord_bot.js']);
 
         botProcess.stdout.on('data', (data) => {
-            console.log(`[디스코드 봇] ${data}`);
-            discordBotLogStream.write(`${new Date().toISOString()} - ${data}`);
+            const logMessage = `[디스코드 봇] ${data.toString().trim()}`;
+            originalConsoleLog(logMessage); // 콘솔 출력
+            discordBotLogStream.write(`${new Date().toISOString()} - ${logMessage}\n`);
+            discordLogQueues.info.push(logMessage);
         });
 
         botProcess.stderr.on('data', (data) => {
-            console.error(`[디스코드 봇 오류] ${data}`);
-            discordBotLogStream.write(`${new Date().toISOString()} - 오류: ${data}`);
+            const errorMessage = `[디스코드 봇 오류] ${data.toString().trim()}`;
+            originalConsoleLog(errorMessage); // 콘솔 출력
+            discordBotLogStream.write(`${new Date().toISOString()} - 오류: ${errorMessage}\n`);
+            discordLogQueues.error.push(errorMessage);
         });
 
         botProcess.on('close', (code) => {
-            console.error(`[디스코드 봇] 프로세스가 종료되었습니다. 종료 코드: ${code}. 재시작합니다...`);
-            sendEmail('디스코드 봇 종료 알림', `디스코드 봇이 종료되었습니다. 종료 코드: ${code}.`);
+            const closeMessage = `[디스코드 봇] 프로세스가 종료되었습니다. 종료 코드: ${code}. 재시작합니다...`;
+            originalConsoleLog(closeMessage); // 콘솔 출력
+            discordBotLogStream.write(`${new Date().toISOString()} - ${closeMessage}\n`);
+            discordLogQueues.error.push(closeMessage);
             restartBot();
         });
     };
@@ -179,12 +159,33 @@ function startDiscordBot() {
     restartBot();
 }
 
+// 디스코드 로그 전송
+async function sendLogsToDiscordByType(logType) {
+    const discordWebhook = process.env[`DISCORD_WEBHOOK_URL_${logType.toUpperCase()}`];
+    if (!discordWebhook) {
+        console.error('메인 서버', `${logType.toUpperCase()} DISCORD_WEBHOOK_URL이 설정되지 않았습니다.`);
+        return;
+    }
+
+    setInterval(async () => {
+        if (discordLogQueues[logType].length > 0) {
+            const messages = discordLogQueues[logType].splice(0, 5).join('\n');
+            try {
+                await axios.post(discordWebhook, { content: `\`\`\`${messages}\`\`\`` });
+            } catch (error) {
+                console.error('메인 서버', `[${logType.toUpperCase()}] 디스코드 로그 전송 중 오류 발생:`, error.message);
+            }
+        }
+    }, 2000);
+}
+
 // 초기 실행
 (async () => {
-    await connectToDatabase(); // 데이터베이스 연결
+    await connectToDatabase();
     startServer('웹 서버', 'server.js', webServerLogStream);
     startServer('채팅 서버', 'chat_server.js', chatServerLogStream);
-    startDiscordBot(); // 디스코드 봇 실행
-    rotateAndSendLogs(); // 로그 분할 및 이메일 전송 스케줄 시작
-    sendEmail('서버 시작 알림', '서버가 성공적으로 시작되었습니다.');
+    startDiscordBot();
+    sendLogsToDiscordByType('info');
+    sendLogsToDiscordByType('error');
+    console.log('메인 서버', '서버가 성공적으로 시작되었습니다.');
 })();

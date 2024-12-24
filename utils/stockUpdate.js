@@ -10,7 +10,7 @@ async function updateRealStockPrices() {
     });
 
     try {
-        console.log('[INFO] 실시간 주식 가격 업데이트 시작...');
+        // console.log('[INFO] 실시간 주식 가격 업데이트 시작...');
 
         // 데이터베이스에서 모든 주식 종목 조회
         const [stocks] = await connection.execute('SELECT stock_symbol, price FROM stocks');
@@ -47,7 +47,7 @@ async function updateRealStockPrices() {
             }
         }
 
-        console.log('[INFO] 실시간 주식 가격 업데이트 완료.');
+        // console.log('[INFO] 실시간 주식 가격 업데이트 완료.');
     } catch (error) {
         console.error(`[ERROR] 실시간 주식 가격 업데이트 중 오류 발생: ${error.message}`);
     } finally {

