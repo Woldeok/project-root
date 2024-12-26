@@ -3,22 +3,15 @@ const dotenv = require('dotenv');
 const fs = require('fs');
 const path = require('path');
 const mysql = require('mysql2/promise');
-const { updateRealStockPrices, startRealStockUpdate } = require('./utils/stockUpdate'); // 주식 업데이트 모듈
+const { updateRealStockPrices, startRealStockUpdate } = require('./utils/stockUpdate');
 
 dotenv.config();
 
 const ORANGE = '\x1b[33m';
 const RESET = '\x1b[0m';
 
-// musicQueue 가져오기
-const musicQueue = require('./musicQueue');
-
 const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildVoiceStates,
-        GatewayIntentBits.GuildMessages,
-    ],
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
 });
 
 client.commands = new Collection();
@@ -26,7 +19,7 @@ client.commands = new Collection();
 // 명령어 파일 로드
 const commands = [];
 const commandsPath = path.join(__dirname, 'commands');
-const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+const commandFiles = fs.readdirSync(commandsPath).filter((file) => file.endsWith('.js'));
 
 for (const file of commandFiles) {
     const command = require(path.join(commandsPath, file));
@@ -46,19 +39,17 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
         console.error(`${ORANGE}전역 명령어 등록 중 오류 발생: ${error.message}${RESET}`);
     }
 
-    try {
-        if (process.env.GUILD_ID) {
+    if (process.env.GUILD_ID) {
+        try {
             console.log(`${ORANGE}특정 서버 슬래시 명령어 등록 중...${RESET}`);
             await rest.put(
                 Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
                 { body: commands }
             );
             console.log(`${ORANGE}특정 서버 슬래시 명령어 등록 완료!${RESET}`);
-        } else {
-            console.warn(`${ORANGE}GUILD_ID가 설정되지 않았습니다. 특정 서버 등록을 건너뜁니다.${RESET}`);
+        } catch (error) {
+            console.error(`${ORANGE}특정 서버 명령어 등록 중 오류 발생: ${error.message}${RESET}`);
         }
-    } catch (error) {
-        console.error(`${ORANGE}특정 서버 명령어 등록 중 오류 발생: ${error.message}${RESET}`);
     }
 })();
 
@@ -83,16 +74,15 @@ let dbConnection;
 client.on('ready', () => {
     console.log(`${ORANGE}${client.user.tag}로 로그인되었습니다.${RESET}`);
 
-    // 주식 업데이트 주기 설정
     try {
-        startRealStockUpdate(); // 1분마다 주식 데이터 업데이트
+        startRealStockUpdate();
         console.log(`${ORANGE}실시간 주식 업데이트가 시작되었습니다.${RESET}`);
     } catch (error) {
         console.error(`${ORANGE}실시간 주식 업데이트 시작 중 오류 발생: ${error.message}${RESET}`);
     }
 });
 
-client.on('interactionCreate', async interaction => {
+client.on('interactionCreate', async (interaction) => {
     if (interaction.isCommand()) {
         const command = client.commands.get(interaction.commandName);
         if (!command) {
@@ -104,32 +94,30 @@ client.on('interactionCreate', async interaction => {
             console.error(`[오류] 명령어 실행 중 오류 발생: ${error.message}`);
             interaction.reply({ content: '명령어 실행 중 오류가 발생했습니다.', ephemeral: true });
         }
-    } else if (interaction.isButton()) {
-        // 버튼 핸들링 코드
-        const serverQueue = musicQueue.get(interaction.guild.id);
-
-        if (!serverQueue) {
-            return interaction.reply({ content: '현재 음악이 재생되지 않고 있습니다.', ephemeral: true });
+    } else if (interaction.isAutocomplete()) {
+        const command = client.commands.get(interaction.commandName);
+        if (!command) {
+            console.error(`[오류] Autocomplete 처리 중 명령어를 찾을 수 없음: ${interaction.commandName}`);
+            return interaction.respond([]);
         }
-
-        if (interaction.customId === 'pause') {
-            serverQueue.player.pause();
-            const buttons = createMusicButtons('play', 'stop');
-            await interaction.update({ content: '⏸️ 음악이 일시 정지되었습니다.', components: [buttons] });
-        } else if (interaction.customId === 'play') {
-            serverQueue.player.unpause();
-            const buttons = createMusicButtons('pause', 'stop');
-            await interaction.update({ content: '▶️ 음악 재생이 다시 시작되었습니다.', components: [buttons] });
-        } else if (interaction.customId === 'stop') {
-            serverQueue.songs = [];
-            serverQueue.player.stop();
-            serverQueue.connection.destroy();
-            musicQueue.delete(interaction.guild.id);
-            await interaction.update({ content: '⏹️ 음악 재생이 종료되었습니다.', components: [] });
+        try {
+            console.log(`[Autocomplete] 처리 중: ${interaction.commandName}`);
+            await command.autocomplete(interaction);
+        } catch (error) {
+            console.error(`[오류] Autocomplete 실행 중 오류 발생: ${error.message}`);
+            interaction.respond([]);
         }
     }
 });
 
-client.login(process.env.DISCORD_TOKEN).catch(error => {
+process.on('uncaughtException', (err) => {
+    console.error('Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection:', promise, 'reason:', reason);
+});
+
+client.login(process.env.DISCORD_TOKEN).catch((error) => {
     console.error(`${ORANGE}로그인 중 오류 발생: ${error.message}${RESET}`);
 });

@@ -16,3 +16,4 @@ module.exports = {
         interaction.reply('⏭️ 음악을 스킵했습니다.');
     },
 };
+ 
