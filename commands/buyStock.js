@@ -31,13 +31,28 @@ module.exports = {
 
             console.log('[INFO] 데이터베이스 연결 성공. 주식 목록 가져오는 중...');
             const [stocks] = await connection.execute('SELECT stock_symbol FROM stocks');
+            console.log('[INFO] 주식 목록 조회 성공:', stocks);
+
+            // 주식 가격 추가
+            const choices = [];
+            for (const stock of stocks) {
+                try {
+                    const price = await getStockPrice(stock.stock_symbol);
+                    console.log(`[INFO] 주식 가격 가져오기 성공 - ${stock.stock_symbol}: ${price}`);
+                    choices.push({
+                        name: `${stock.stock_symbol} (${price.toLocaleString()}원)`,
+                        value: stock.stock_symbol,
+                    });
+                } catch (error) {
+                    console.error(`[ERROR] 주식 가격 조회 실패 - ${stock.stock_symbol}: ${error.message}`);
+                    choices.push({
+                        name: stock.stock_symbol,
+                        value: stock.stock_symbol,
+                    });
+                }
+            }
+
             await connection.end();
-
-            const choices = stocks.map(stock => ({
-                name: stock.stock_symbol,
-                value: stock.stock_symbol,
-            }));
-
             console.log('[INFO] 자동완성 응답 준비 완료:', choices);
             await interaction.respond(choices.slice(0, 25)); // 최대 25개의 선택지만 반환
         } catch (error) {
