@@ -134,7 +134,8 @@ router.use((req, res, next) => {
         '/admin',
         '/config.php',
         '.php',
-        'index.php'
+        'index.php',
+        '/cgi-bin/luci/;stok=/locale'
     ];
     const ip = getClientIp(req);        
 
