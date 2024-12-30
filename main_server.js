@@ -217,6 +217,10 @@ function startServer(serverName, scriptPath, logStream) {
     restartServer();
     sendEmail(`${serverName} 서버 시작 알림`, `${serverName} 서버가 성공적으로 시작되었습니다.`);
 }
+function startDiscordBot() {
+    console.log('메인 서버', '디스코드 봇을 실행합니다...');
+    spawn('node', ['discord_bot.js'], { stdio: 'inherit' });
+}
 
 (async () => {
     try {
@@ -225,6 +229,7 @@ function startServer(serverName, scriptPath, logStream) {
         startServer('채팅 서버', 'chat_server.js', chatServerLogStream);
         sendLogsToDiscordByType('info');
         sendLogsToDiscordByType('error');
+        startDiscordBot();
         console.log('메인 서버', '서버가 성공적으로 시작되었습니다.');
     } catch (error) {
         console.error('초기화 중 오류:', error.message);

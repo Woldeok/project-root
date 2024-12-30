@@ -302,6 +302,9 @@ app.use('/', discordAuth);
 
 // const discordRouter = require('./src/routes/discord_router');
 // app.use('/discord', discordRouter);
+const accessManager = require('./src/routes/accessManager');
+app.use('/manage-access', accessManager);
+
 
 app.listen(port, () => {
   logger.info(`Server running on http://localhost:${port}`);
