@@ -5,6 +5,7 @@ const dotenv = require('dotenv');
 const mysql = require('mysql2/promise');
 const axios = require('axios');
 const nodemailer = require('nodemailer');
+const { exec } = require('child_process');
 
 // .env 파일 로드
 dotenv.config({ path: path.join(__dirname, '.env') });
@@ -99,6 +100,7 @@ let dbConnection;
 
 async function connectToDatabase() {
     try {
+        console.log('메인 서버', '데이터베이스에 연결을 시도합니다...');
         dbConnection = await mysql.createConnection({
             host: process.env.DB_HOST,
             user: process.env.DB_USER,
@@ -108,7 +110,7 @@ async function connectToDatabase() {
         });
         console.log('메인 서버', '데이터베이스에 연결되었습니다.');
     } catch (error) {
-        console.error('메인 서버', '데이터베이스 연결 중 오류 발생:', error);
+        console.error('메인 서버', '데이터베이스 연결 중 오류 발생:', error.message);
         process.exit(1);
     }
 }
@@ -181,6 +183,73 @@ async function sendLogsToDiscordByType(logType) {
     }, 2000);
 }
 
+// 데이터베이스 백업 및 SQL 생성
+const backupDir = path.join(__dirname, 'db_backups');
+if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+const mysqldumpPath = '"C:\\Program Files\\MySQL\\MySQL Server 8.0\\bin\\mysqldump"';
+
+async function backupDatabase() {
+    try {
+        const [databases] = await dbConnection.query('SHOW DATABASES');
+        databases
+            .map((db) => db.Database)
+            .filter((dbName) => !['information_schema', 'performance_schema', 'mysql', 'sys'].includes(dbName))
+            .forEach((dbName) => {
+                const backupFile = path.join(backupDir, `${dbName}_${new Date().toISOString().split('T')[0]}.sql`);
+                const dumpCommand = `${mysqldumpPath} -h ${process.env.DB_HOST} -u ${process.env.DB_USER} -p${process.env.DB_PASSWORD} --databases ${dbName} > "${backupFile}"`;
+                exec(dumpCommand, (error, stdout, stderr) => {
+                    if (error) {
+                        console.error('메인 서버', `데이터베이스 ${dbName} 덤프 중 오류 발생:`, error.message);
+                        return;
+                    }
+                    console.log('메인 서버', `데이터베이스 ${dbName} 백업 완료: ${backupFile}`);
+                });
+            });
+    } catch (error) {
+        console.error('메인 서버', '백업 중 오류 발생:', error.message);
+    }
+}
+
+
+async function saveDatabaseCreationSQL() {
+    try {
+        const [databases] = await dbConnection.query('SHOW DATABASES');
+        const dbNames = databases
+            .map((db) => db.Database)
+            .filter((dbName) => !['information_schema', 'performance_schema', 'mysql', 'sys'].includes(dbName));
+
+        if (dbNames.length === 0) {
+            console.log('메인 서버', '저장할 데이터베이스가 없습니다.');
+            return;
+        }
+
+        const sqlFilePath = path.join(__dirname, 'database_creation.sql');
+        const writeStream = fs.createWriteStream(sqlFilePath, { flags: 'w' });
+
+        for (const dbName of dbNames) {
+            console.log('메인 서버', `데이터베이스 ${dbName}의 구조와 데이터를 저장합니다.`);
+
+            // 데이터베이스 구조와 데이터 덤프 생성
+            const dumpCommand = `mysqldump -h ${process.env.DB_HOST} -u ${process.env.DB_USER} -p${process.env.DB_PASSWORD} --databases ${dbName}`;
+            exec(dumpCommand, (error, stdout, stderr) => {
+                if (error) {
+                    console.error('메인 서버', `데이터베이스 ${dbName} 덤프 중 오류 발생:`, error.message);
+                    return;
+                }
+
+                writeStream.write(stdout + '\n');
+                console.log('메인 서버', `데이터베이스 ${dbName} SQL 생성 완료.`);
+            });
+        }
+
+        writeStream.end();
+        console.log('메인 서버', `데이터베이스 생성 SQL 저장 완료: ${sqlFilePath}`);
+    } catch (error) {
+        console.error('메인 서버', '데이터베이스 생성 SQL 저장 중 오류 발생:', error.message);
+    }
+}
+
+
 // 서버 실행 및 재시작 함수
 function startServer(serverName, scriptPath, logStream) {
     let serverProcess;
@@ -217,6 +286,7 @@ function startServer(serverName, scriptPath, logStream) {
     restartServer();
     sendEmail(`${serverName} 서버 시작 알림`, `${serverName} 서버가 성공적으로 시작되었습니다.`);
 }
+
 function startDiscordBot() {
     console.log('메인 서버', '디스코드 봇을 실행합니다...');
     spawn('node', ['discord_bot.js'], { stdio: 'inherit' });
@@ -225,6 +295,12 @@ function startDiscordBot() {
 (async () => {
     try {
         await connectToDatabase();
+        await saveDatabaseCreationSQL(); // 데이터베이스 생성 SQL 저장
+        await backupDatabase(); // 초기 백업 수행
+
+        // 주기적 백업 (1시간마다 실행)
+        setInterval(backupDatabase, 60 * 60 * 1000); // 1시간 = 3600000ms
+
         startServer('웹 서버', 'server.js', webServerLogStream);
         startServer('채팅 서버', 'chat_server.js', chatServerLogStream);
         sendLogsToDiscordByType('info');
@@ -232,6 +308,8 @@ function startDiscordBot() {
         startDiscordBot();
         console.log('메인 서버', '서버가 성공적으로 시작되었습니다.');
     } catch (error) {
-        console.error('초기화 중 오류:', error.message);
+        console.error('메인 서버', '초기화 중 오류:', error.message);
+    } finally {
+        if (dbConnection) await dbConnection.end(); // 연결 종료
     }
 })();
