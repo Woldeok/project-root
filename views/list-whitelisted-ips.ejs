@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>화이트리스트 IP 목록</title>
+</head>
+<body>
+    <h1>화이트리스트 IP 목록</h1>
+    <form action="/whitelist-ip" method="POST">
+        <label for="ip">IP 추가:</label>
+        <input type="text" id="ip" name="ip" required>
+        <button type="submit">추가</button>
+    </form>
+    <table>
+        <thead>
+            <tr>
+                <th>IP 주소</th>
+                <th>등록 시간</th>
+            </tr>
+        </thead>
+        <tbody>
+            <% if (whitelistedIps.length === 0) { %>
+                <tr>
+                    <td colspan="2">등록된 IP가 없습니다.</td>
+                </tr>
+            <% } else { %>
+                <% whitelistedIps.forEach(ip => { %>
+                    <tr>
+                        <td><%= ip.ip_address %></td>
+                        <td><%= new Date(ip.created_at).toLocaleString('ko-KR') %></td>
+                    </tr>
+                <% }); %>
+            <% } %>
+        </tbody>
+    </table>
+</body>
+</html>

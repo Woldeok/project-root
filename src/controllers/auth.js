@@ -4,7 +4,7 @@ const bcrypt = require('bcrypt');
 const cookieParser = require('cookie-parser');
 const router = express.Router();
 const db = require('../controllers/db'); // 데이터베이스 연결
-const SECRET_KEY = process.env.SECRET_KEY || 'your_secret_key';
+const SECRET_KEY = process.env.SECRET_KEY;
 const logger = console;
 
 // 쿠키 파서 미들웨어
@@ -110,11 +110,25 @@ router.post('/login', (req, res) => {
 
     // JWT 생성
     console.time('JWT 토큰 생성');
-    const token = jwt.sign({ user_id, role }, SECRET_KEY, { expiresIn: '10000h' });
+    const token = jwt.sign(
+      {
+        user_id: user_id, // 사용자 ID
+        role: role        // 사용자 권한
+      },
+      process.env.SECRET_KEY, // 환경 변수에서 키 가져오기
+      {
+        expiresIn: '1h' // 1시간 유효
+      }
+    );
     console.timeEnd('JWT 토큰 생성');
 
     // JWT를 쿠키에만 저장
-    res.cookie('auth_token', token, { httpOnly: true, secure: false }); // 클라이언트에서 접근 불가한 쿠키 설정
+    res.cookie('auth_token', token, {
+      httpOnly: true, // 클라이언트에서 JavaScript로 접근 불가
+      secure: false, // HTTP 환경에서는 false로 설정
+      sameSite: 'Lax' // 리디렉션 후에도 쿠키가 전송되도록 설정
+  });
+  
 
     // 세션에 사용자 정보 저장
     req.session.user = { user_id, role };

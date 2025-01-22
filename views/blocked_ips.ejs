@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            margin: 20px 0;
+            color: #555;
+        }
+        table {
+            width: 90%;
+            margin: 20px auto;
+            border-collapse: collapse;
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        .btn-unblock {
+            padding: 8px 16px;
+            background-color: #ff5c5c;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-unblock:hover {
+            background-color: #ff3b3b;
+        }
+        .btn-unblock:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <h1><%= title %></h1>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>IP Address</th>
+                <th>Blocked Until</th>
+                <th>Reason</th>
+                <th>Created At</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            <% blockedIps.forEach(ip => { %>
+                <tr>
+                    <td><%= ip.id %></td>
+                    <td><%= ip.ip_address %></td>
+                    <td><%= new Date(ip.blocked_until).toLocaleString() %></td>
+                    <td><%= ip.reason %></td>
+                    <td><%= new Date(ip.created_at).toLocaleString() %></td>
+                    <td>
+                        <!-- 해제 버튼 -->
+                        <form method="POST" action="/unblock-ip" style="margin: 0; display: inline;">
+                            <input type="hidden" name="ip" value="<%= ip.ip_address %>">
+                            <button type="submit" class="btn-unblock">Unblock</button>
+                        </form>
+                    </td>
+                </tr>
+            <% }); %>
+        </tbody>
+    </table>
+</body>
+</html>
